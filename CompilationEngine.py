@@ -352,7 +352,7 @@ class CompilationEngine(object):
         raise Exception(self.t.tokens[self.t.tokenIndex] +
                         ' is not valid')
 
-    def write_token(self, parent, syntax, category=None):
+    def write_token(self, parent, syntax, category=None, defined=False):
         "Started incorporating the symbol table"
         if self.validator(syntax):
             if self.t.keyword():
@@ -365,11 +365,7 @@ class CompilationEngine(object):
                 newNode.text = ' ' + self.t.symbol() + ' '
             elif self.t.identifier():
                 if category:
-                    terminal = 'identifier'
-                    newNode = ET.SubElement(parent, terminal)
-                    newNode.text = self.t.identifier + '\n'
-                    newNode.text += category + '\n'
-                    newNode.text +=
+                    self.write_variable_token(parent, category, defined)
                 else:
                     terminal = 'identifier'
                     newNode = ET.SubElement(parent, terminal)
@@ -384,3 +380,10 @@ class CompilationEngine(object):
                 newNode.text = ' ' + self.t.int_val() + ' '
         self.t.advance()
         return
+
+        def write_variable_token(parent, category, defined):
+            terminal = 'identifier'
+            newNode = ET.SubElement(parent, terminal)
+            newNode.text = self.t.identifier + '\n'
+            newNode.text += category + '\n'
+            newNode.text +=
