@@ -2,18 +2,15 @@
 
 class VMWriter(object):
 
-    segment = ['CONST', 'ARG', 'LOCAL', 'STATIC',
-               'THIS', 'THAT', 'POINTER', 'TEMP']
-
     def __init__(self, outFileName):
-        self.vmFile = open(outFileName, 'w')
+        # self.vmFile = open(outFileName, 'w')
         self.debugOut = ''
 
         def write_push(segment, index):
-            self.debugOut += 'push ' + segment + ' ' + index + '\n'
+            pass
 
         def write_pop(segment, index):
-            self.debugOut += 'pop ' + segment + ' ' + index + '\n'
+            pass
 
         def write_arithmetic(command):
             pass
@@ -37,4 +34,5 @@ class VMWriter(object):
             pass
 
         def write_close():
-            self.vmFile.close()
+            # self.vmFile.close()
+            pass
