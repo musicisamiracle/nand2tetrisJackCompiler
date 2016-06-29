@@ -1,11 +1,13 @@
 from lxml import etree as ET
 from JackTokenizer import Tokenizer
+from SymbolTable import SymbolTable
 
 
 class CompilationEngine(object):
 
     def __init__(self, inFile):
         self.t = Tokenizer(inFile)
+        self.symTable = SymbolTable()
         self.xmlNew = None
         self.subroutNode = None
         self.subBodyNode = None
@@ -350,7 +352,8 @@ class CompilationEngine(object):
         raise Exception(self.t.tokens[self.t.tokenIndex] +
                         ' is not valid')
 
-    def write_token(self, parent, syntax):
+    def write_token(self, parent, syntax, category=None):
+        "Started incorporating the symbol table"
         if self.validator(syntax):
             if self.t.keyword():
                 terminal = 'keyword'
@@ -361,9 +364,16 @@ class CompilationEngine(object):
                 newNode = ET.SubElement(parent, terminal)
                 newNode.text = ' ' + self.t.symbol() + ' '
             elif self.t.identifier():
-                terminal = 'identifier'
-                newNode = ET.SubElement(parent, terminal)
-                newNode.text = ' ' + self.t.identifier() + ' '
+                if category:
+                    terminal = 'identifier'
+                    newNode = ET.SubElement(parent, terminal)
+                    newNode.text = self.t.identifier + '\n'
+                    newNode.text += category + '\n'
+                    newNode.text +=
+                else:
+                    terminal = 'identifier'
+                    newNode = ET.SubElement(parent, terminal)
+                    newNode.text = ' ' + self.t.identifier() + ' '
             elif self.t.string_val():
                 terminal = 'stringConstant'
                 newNode = ET.SubElement(parent, terminal)
