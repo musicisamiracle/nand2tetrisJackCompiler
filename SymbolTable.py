@@ -10,29 +10,29 @@ class SymbolTable(object):
         self.argIndex = 0
         self.varIndex = 0
 
-    def start_subroutine(self):
+    def start_subroutine(self):  # need to consider nesting functions
         self.subDict = {}
         self.argIndex = 0
         self.varIndex = 0
         return
 
     def define(self, name, type, kind):
-        if kind == 'STATIC':
+        if kind == 'static':
             self.classDict[name] = {'type': type,
                                     'kind': kind,
                                     'index': self.staticIndex}
             self.staticIndex += 1
-        elif kind == 'FIELD':
+        elif kind == 'field':
             self.classDict[name] = {'type': type,
                                     'kind': kind,
                                     'index': self.fieldIndex}
             self.fieldIndex += 1
-        elif kind == 'ARG':
+        elif kind == 'arg':
             self.subDict[name] = {'type': type,
                                   'kind': kind,
                                   'index': self.argIndex}
             self.argIndex += 1
-        elif kind == 'VAR':
+        elif kind == 'var':
             self.subDict[name] = {'type': type,
                                   'kind': kind,
                                   'index': self.varIndex}
@@ -42,13 +42,13 @@ class SymbolTable(object):
         return
 
     def var_count(self, kind):
-        if kind == 'STATIC':
+        if kind == 'static':
             return self.staticIndex
-        elif kind == 'FIELD':
+        elif kind == 'field':
             return self.fieldIndex
-        elif kind == 'ARG':
+        elif kind == 'arg':
             return self.argIndex
-        elif kind == 'VAR':
+        elif kind == 'var':
             return self.varIndex
         else:
             return None
