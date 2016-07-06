@@ -22,7 +22,8 @@ class CompilationEngine(object):
         self.xmlNew = ET.Element('class')
         self.t.advance()
         self.write_token(self.xmlNew, 'class')
-        self.write_token(self.xmlNew, 'IDENTIFIER')  # className
+        self.write_token(self.xmlNew, 'IDENTIFIER',
+                         category='class', defined=True)
         self.write_token(self.xmlNew, '{')
         self.compile_class_var_dec()
         while self.t.symbol() != '}':   # subroutines
@@ -35,15 +36,23 @@ class CompilationEngine(object):
 
         while self.t.keyword() in varKeyWords:
             varNode = ET.SubElement(self.xmlNew, 'classVarDec')
+            kind = self.t.tokens[self.t.tokenIndex]
             self.write_token(varNode, varKeyWords)
             # variable type
-            self.write_token(varNode, ['int', 'char', 'bool', 'IDENTIFIER'])
-            self.write_token(varNode, 'IDENTIFIER')  # varName
-
+            varType = self.t.tokens[self.t.tokenIndex]
+            self.write_token(varNode, ['int', 'char', 'bool', 'IDENTIFIER'],
+                             category='class')
+            name = self.t.tokens[self.t.tokenIndex]
+            self.symTable.define(name, varType, kind)
+            self.write_token(varNode, 'IDENTIFIER',
+                             category=kind, defined=True)  # varName
             self.validator('SYMBOL')
             while self.t.symbol() != ';':  # checks multiple vars
                 self.write_token(varNode, ',')
-                self.write_token(varNode, 'IDENTIFIER')
+                name = self.t.tokens[self.t.tokenIndex]
+                self.symTable.define(name, varType, kind)
+                self.write_token(varNode, 'IDENTIFIER',
+                                 category=kind, defined=True)
             self.write_token(varNode, ';')
         return
 
@@ -54,8 +63,9 @@ class CompilationEngine(object):
                                             'method'])
         self.write_token(self.subroutNode, ['int', 'char',
                                             'boolean', 'void',
-                                            'IDENTIFIER'])
-        self.write_token(self.subroutNode, 'IDENTIFIER')
+                                            'IDENTIFIER'], category='class')
+        self.write_token(self.subroutNode, 'IDENTIFIER',
+                         category='subroutine', defined=True)
         self.write_token(self.subroutNode, '(')
         self.compile_parameter_list()
         self.write_token(self.subroutNode, ')')
@@ -88,15 +98,15 @@ class CompilationEngine(object):
 
         self.write_token(paramNode, ['int', 'char',
                                      'boolean', 'void',
-                                     'IDENTIFIER'])  # type
-        self.write_token(paramNode, 'IDENTIFIER')  # varName
+                                     'IDENTIFIER'], category='class')
+        self.write_token(paramNode, 'IDENTIFIER', category='parameter')
         while self.t.symbol() == ',':
 
             self.write_token(paramNode, ',')
             self.write_token(paramNode, ['int', 'char',
                                          'boolean', 'void',
-                                         'IDENTIFIER'])  # type
-            self.write_token(paramNode, 'IDENTIFIER')
+                                         'IDENTIFIER'], category='class')
+            self.write_token(paramNode, 'IDENTIFIER', category='parameter')
 
         return
 
@@ -104,15 +114,23 @@ class CompilationEngine(object):
 
         while self.t.keyword() == 'var':  # check multiple lines of var
             varDecNode = ET.SubElement(self.subBodyNode, 'varDec')
+            kind = self.t.tokens[self.t.tokenIndex]
             self.write_token(varDecNode, 'var')
+            varType = self.t.tokens[self.t.tokenIndex]
             self.write_token(varDecNode, ['int', 'char',
                                           'boolean', 'void',
-                                          'IDENTIFIER'])  # type
-            self.write_token(varDecNode, 'IDENTIFIER')  # varName
+                                          'IDENTIFIER'], category='class')
+            name = self.t.tokens[self.t.tokenIndex]
+            self.symTable.define(name, varType, kind)
+            self.write_token(varDecNode, 'IDENTIFIER',
+                             category='var', defined=True)  # varName
 
             while self.t.symbol() == ',':  # multiple varNames
                 self.write_token(varDecNode, ',')
-                self.write_token(varDecNode, 'IDENTIFIER')
+                name = self.t.tokens[self.t.tokenIndex]
+                self.symTable.define(name, varType, kind)
+                self.write_token(varDecNode, 'IDENTIFIER',
+                                 category='var', defined=True)
 
             self.write_token(varDecNode, ';')
 
@@ -143,7 +161,7 @@ class CompilationEngine(object):
         self.write_token(doNode, 'do')
         self.write_token(doNode, 'IDENTIFIER')
 
-        if self.t.symbol() == '(':  # subroutineName(expressionlist)
+        if self.t.symbol() == '(':  # subroutineName(exprlist)
             self.write_token(doNode, '(')
             self.expressNode = ET.SubElement(doNode, 'expressionList')
             self.compile_expression_list()
@@ -168,7 +186,14 @@ class CompilationEngine(object):
         letNode = ET.SubElement(self.stmntNode, 'letStatement')
         self.write_token(letNode, 'let')
         while self.t.symbol() != ';':
-            self.write_token(letNode, 'IDENTIFIER')
+            name = self.t.identifier()
+            kind = self.symTable.kind_of(name)
+            if name in self.symTable.classDict:
+                self.write_token(letNode, 'IDENTIFIER', category=kind)
+            elif name in self.symTable.subDict:
+                self.write_token(letNode, 'IDENTIFIER', category=kind)
+            else:
+                raise Exception(self.t.identifier() + ' is not defined')
             if self.t.symbol() == '[':  # array index
                 self.write_token('letNode', '[')
                 self.expressNode = ET.SubElement(letNode, 'expression')
@@ -364,12 +389,9 @@ class CompilationEngine(object):
                 newNode = ET.SubElement(parent, terminal)
                 newNode.text = ' ' + self.t.symbol() + ' '
             elif self.t.identifier():
-                if category:
-                    self.write_variable_token(parent, category, defined)
-                else:
-                    terminal = 'identifier'
-                    newNode = ET.SubElement(parent, terminal)
-                    newNode.text = ' ' + self.t.identifier() + ' '
+                self.write_variable_token(parent,
+                                          category=category,
+                                          defined=defined)
             elif self.t.string_val():
                 terminal = 'stringConstant'
                 newNode = ET.SubElement(parent, terminal)
@@ -381,12 +403,15 @@ class CompilationEngine(object):
         self.t.advance()
         return
 
-        def write_variable_token(parent, category, defined):
-            terminal = 'identifier'
-            newNode = ET.SubElement(parent, terminal)
-            newNode.text = self.t.identifier + '\n'
-            newNode.text += category + '\n'
-            if defined:
-                newNode.text += 'defined'
-            else:
-                newNode.text += 'used'
+    def write_variable_token(self, parent, category=None, defined=False):
+        terminal = 'identifier'
+        token = self.t.identifier()
+        newNode = ET.SubElement(parent, terminal)
+        newNode.text = token + '\n'
+        newNode.text += category + '\n'
+        if category in ['var', 'arg', 'field', 'static']:
+            newNode.text += str(self.symTable.index_of(token)) + '\n'
+        if defined:
+            newNode.text += 'defined' + '\n'
+        else:
+            newNode.text += 'used' + '\n'
