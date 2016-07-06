@@ -386,4 +386,7 @@ class CompilationEngine(object):
             newNode = ET.SubElement(parent, terminal)
             newNode.text = self.t.identifier + '\n'
             newNode.text += category + '\n'
-            newNode.text +=
+            if defined:
+                newNode.text += 'defined'
+            else:
+                newNode.text += 'used'
