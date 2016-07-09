@@ -2,6 +2,8 @@ from lxml import etree as ET
 from JackTokenizer import Tokenizer
 from SymbolTable import SymbolTable
 
+"""Not certain about start_subroutine"""
+
 
 class CompilationEngine(object):
 
@@ -16,14 +18,16 @@ class CompilationEngine(object):
         self.termNode = None
         self.types = ['int', 'char', 'boolean', 'void']
         self.stmnt = ['do', 'let', 'if', 'while', 'return']
+        self.kind = None
 
     def compile_class(self):
 
         self.xmlNew = ET.Element('class')
         self.t.advance()
         self.write_token(self.xmlNew, 'class')
+        # self.kind = 'class'
         self.write_token(self.xmlNew, 'IDENTIFIER',
-                         category='class', defined=True)
+                         kind='class', defined=True)
         self.write_token(self.xmlNew, '{')
         self.compile_class_var_dec()
         while self.t.symbol() != '}':   # subroutines
@@ -33,6 +37,9 @@ class CompilationEngine(object):
 
     def compile_class_var_dec(self):
         varKeyWords = ['field', 'static']
+        name = ''
+        kind = ''
+        varType = ''
 
         while self.t.keyword() in varKeyWords:
             varNode = ET.SubElement(self.xmlNew, 'classVarDec')
@@ -40,19 +47,21 @@ class CompilationEngine(object):
             self.write_token(varNode, varKeyWords)
             # variable type
             varType = self.t.tokens[self.t.tokenIndex]
+            # self.kind = 'class'
             self.write_token(varNode, ['int', 'char', 'bool', 'IDENTIFIER'],
-                             category='class')
+                             kind='class')
             name = self.t.tokens[self.t.tokenIndex]
             self.symTable.define(name, varType, kind)
+            # self.kind = kind
             self.write_token(varNode, 'IDENTIFIER',
-                             category=kind, defined=True)  # varName
+                             kind=kind, defined=True)  # varName
             self.validator('SYMBOL')
             while self.t.symbol() != ';':  # checks multiple vars
                 self.write_token(varNode, ',')
                 name = self.t.tokens[self.t.tokenIndex]
                 self.symTable.define(name, varType, kind)
                 self.write_token(varNode, 'IDENTIFIER',
-                                 category=kind, defined=True)
+                                 kind=kind, defined=True)
             self.write_token(varNode, ';')
         return
 
@@ -61,11 +70,13 @@ class CompilationEngine(object):
         self.subroutNode = ET.SubElement(self.xmlNew, 'subroutineDec')
         self.write_token(self.subroutNode, ['constructor', 'function',
                                             'method'])
+        # self.kind = 'class'
         self.write_token(self.subroutNode, ['int', 'char',
                                             'boolean', 'void',
-                                            'IDENTIFIER'], category='class')
+                                            'IDENTIFIER'], kind='class')
+        # self.kind = 'subroutine'
         self.write_token(self.subroutNode, 'IDENTIFIER',
-                         category='subroutine', defined=True)
+                         kind='subroutine', defined=True)
         self.write_token(self.subroutNode, '(')
         self.compile_parameter_list()
         self.write_token(self.subroutNode, ')')
@@ -90,47 +101,67 @@ class CompilationEngine(object):
         return
 
     def compile_parameter_list(self):
+        name = ''
+        varType = ''
+        kind = ''
 
         paramNode = ET.SubElement(self.subroutNode, 'parameterList')
         if self.t.symbol() == ')':
             paramNode.text = '\n'
             return
-
+        # self.kind = 'class'
+        varType = self.t.tokens[self.t.tokenIndex]
         self.write_token(paramNode, ['int', 'char',
                                      'boolean', 'void',
-                                     'IDENTIFIER'], category='class')
-        self.write_token(paramNode, 'IDENTIFIER', category='parameter')
+                                     'IDENTIFIER'], kind='class')
+        kind = 'arg'
+        # self.kind = 'arg'
+        name = self.t.tokens[self.t.tokenIndex]
+        self.symTable.define(name, varType, kind)
+        self.write_token(paramNode, 'IDENTIFIER',
+                         kind='arg', defined=True)
         while self.t.symbol() == ',':
 
             self.write_token(paramNode, ',')
+            # self.kind = 'class'
             self.write_token(paramNode, ['int', 'char',
                                          'boolean', 'void',
-                                         'IDENTIFIER'], category='class')
-            self.write_token(paramNode, 'IDENTIFIER', category='parameter')
+                                         'IDENTIFIER'], kind='class')
+            kind = 'arg'
+            # self.kind = 'arg'
+            name = self.t.tokens[self.t.tokenIndex]
+            self.symTable.define(name, varType, kind)
+            self.write_token(paramNode, 'IDENTIFIER',
+                             kind='arg', defined=True)
 
         return
 
     def compile_var_dec(self):
+        name = ''
+        kind = ''
+        varType = ''
 
         while self.t.keyword() == 'var':  # check multiple lines of var
             varDecNode = ET.SubElement(self.subBodyNode, 'varDec')
-            kind = self.t.tokens[self.t.tokenIndex]
+            kind = 'var'
             self.write_token(varDecNode, 'var')
             varType = self.t.tokens[self.t.tokenIndex]
+            # self.kind = 'class'
             self.write_token(varDecNode, ['int', 'char',
                                           'boolean', 'void',
-                                          'IDENTIFIER'], category='class')
+                                          'IDENTIFIER'], kind='class')
             name = self.t.tokens[self.t.tokenIndex]
             self.symTable.define(name, varType, kind)
+            # self.kind = 'var'
             self.write_token(varDecNode, 'IDENTIFIER',
-                             category='var', defined=True)  # varName
+                             kind='var', defined=True)  # varName
 
             while self.t.symbol() == ',':  # multiple varNames
                 self.write_token(varDecNode, ',')
                 name = self.t.tokens[self.t.tokenIndex]
                 self.symTable.define(name, varType, kind)
                 self.write_token(varDecNode, 'IDENTIFIER',
-                                 category='var', defined=True)
+                                 kind='var', defined=True)
 
             self.write_token(varDecNode, ';')
 
@@ -156,46 +187,60 @@ class CompilationEngine(object):
         return
 
     def compile_do(self):
+        "Need to implement start_subroutine"
         doNode = ET.SubElement(self.stmntNode, 'doStatement')
         savedNode = self.expressNode
+        lookAhead = ''
+        current_subrout_scope = self.symTable.subDict
+        self.symTable.start_subroutine()
         self.write_token(doNode, 'do')
-        self.write_token(doNode, 'IDENTIFIER')
+        lookAhead = self.t.tokens[self.t.tokenIndex + 1]
 
-        if self.t.symbol() == '(':  # subroutineName(exprlist)
+        if lookAhead == '(':  # subroutineName(exprlist)
+            # self.kind = 'subroutine'
+            self.write_token(doNode, 'IDENTIFIER', kind='subroutine')
             self.write_token(doNode, '(')
             self.expressNode = ET.SubElement(doNode, 'expressionList')
             self.compile_expression_list()
             self.expressNode = savedNode
             self.write_token(doNode, ')')
             self.write_token(doNode, ';')
+            self.symTable.subDict = current_subrout_scope
+
+            return
+        else:
+            # self.kind = 'class'
+            self.write_token(doNode, 'IDENTIFIER', kind='class')
+            self.write_token(doNode, '.')  # name.subroutine(exprList)
+            # self.kind = 'subroutine'
+            self.write_token(doNode, 'IDENTIFIER', kind='subroutine')
+            self.write_token(doNode, '(')
+            self.expressNode = ET.SubElement(doNode, 'expressionList')
+            self.compile_expression_list()
+            self.expressNode = savedNode
+            self.write_token(doNode, ')')
+            self.write_token(doNode, ';')
+            self.symTable.subDict = current_subrout_scope
 
             return
 
-        self.write_token(doNode, '.')  # name.subroutine(exprList)
-        self.write_token(doNode, 'IDENTIFIER')
-        self.write_token(doNode, '(')
-        self.expressNode = ET.SubElement(doNode, 'expressionList')
-        self.compile_expression_list()
-        self.expressNode = savedNode
-        self.write_token(doNode, ')')
-        self.write_token(doNode, ';')
-
-        return
-
     def compile_let(self):
+        name = ''
+        kind = ''
         letNode = ET.SubElement(self.stmntNode, 'letStatement')
         self.write_token(letNode, 'let')
         while self.t.symbol() != ';':
             name = self.t.identifier()
             kind = self.symTable.kind_of(name)
+            # self.kind = kind
             if name in self.symTable.classDict:
-                self.write_token(letNode, 'IDENTIFIER', category=kind)
+                self.write_token(letNode, 'IDENTIFIER', kind=kind)
             elif name in self.symTable.subDict:
-                self.write_token(letNode, 'IDENTIFIER', category=kind)
+                self.write_token(letNode, 'IDENTIFIER', kind=kind)
             else:
                 raise Exception(self.t.identifier() + ' is not defined')
             if self.t.symbol() == '[':  # array index
-                self.write_token('letNode', '[')
+                self.write_token(letNode, '[')
                 self.expressNode = ET.SubElement(letNode, 'expression')
                 self.compile_expression()
                 self.write_token(letNode, ']')
@@ -289,6 +334,8 @@ class CompilationEngine(object):
         keyConst = ['true', 'false', 'null', 'this']
         unOps = ['-', '~']
         lookAhead = ''
+        name = ''
+        current_subrout_scope = ''
 
         if self.t.token_type() == 'INT_CONST':
             self.write_token(self.termNode, 'INT_CONST')
@@ -315,26 +362,37 @@ class CompilationEngine(object):
         elif self.t.token_type() == 'IDENTIFIER':  # varName, array, or subcall
             lookAhead = self.t.tokens[self.t.tokenIndex + 1]
             if lookAhead == '[':  # array item
-                self.write_token(self.termNode, 'IDENTIFIER')
+                name = self.t.identifier()
+                # self.kind = self.symTable.kind_of(name)
+                kind = self.symTable.kind_of(name)
+                self.write_token(self.termNode, 'IDENTIFIER', kind=kind)
                 self.write_token(self.termNode, '[')
                 self.expressNode = ET.SubElement(self.termNode, 'expression')
                 self.compile_expression()
                 self.expressNode = savedNode
-                self.write_token(']')
+                self.write_token(self.termNode, ']')
 
             elif lookAhead == '(':  # subcall
-                self.write_token(self.termNode, 'IDENTIFIER')
+                # self.kind = 'subroutine'
+                current_subrout_scope = self.symTable.subDict
+                self.write_token(self.termNode, 'IDENTIFIER',
+                                 kind='subroutine')
                 self.write_token(self.termNode, '(')
                 self.expressNode = ET.SubElement(self.termNode,
                                                  'expressionList')
                 self.compile_expression_list()
                 self.expressNode = savedNode
                 self.write_token(self.termNode, ')')
+                self.symTable.subDict = current_subrout_scope
 
             elif lookAhead == '.':  # name.subroutName(expressList)
-                self.write_token(self.termNode, 'IDENTIFIER')
+                # self.kind = 'class'
+                current_subrout_scope = self.symTable.subDict
+                self.write_token(self.termNode, 'IDENTIFIER', kind='class')
                 self.write_token(self.termNode, '.')
-                self.write_token(self.termNode, 'IDENTIFIER')
+                # self.kind = 'subroutine'
+                self.write_token(self.termNode, 'IDENTIFIER',
+                                 kind='subroutine')
                 self.write_token(self.termNode, '(')
                 self.expressNode = ET.SubElement(self.termNode,
                                                  'expressionList')
@@ -342,8 +400,13 @@ class CompilationEngine(object):
                 self.expressNode = savedNode
 
                 self.write_token(self.termNode, ')')
+                self.symTable.subDict = current_subrout_scope
             else:
-                self.write_token(self.termNode, 'IDENTIFIER')  # varName
+                name = self.t.identifier()
+                # self.kind = self.symTable.kind_of(name)
+                kind = self.symTable.kind_of(name)
+                self.write_token(self.termNode, 'IDENTIFIER',
+                                 kind=kind)  # varName
 
         else:
             raise Exception(self.t.tokens[self.t.tokenIndex] +
@@ -377,8 +440,7 @@ class CompilationEngine(object):
         raise Exception(self.t.tokens[self.t.tokenIndex] +
                         ' is not valid')
 
-    def write_token(self, parent, syntax, category=None, defined=False):
-        "Started incorporating the symbol table"
+    def write_token(self, parent, syntax, kind=None, defined=False):
         if self.validator(syntax):
             if self.t.keyword():
                 terminal = 'keyword'
@@ -390,8 +452,7 @@ class CompilationEngine(object):
                 newNode.text = ' ' + self.t.symbol() + ' '
             elif self.t.identifier():
                 self.write_variable_token(parent,
-                                          category=category,
-                                          defined=defined)
+                                          kind=kind, defined=defined)
             elif self.t.string_val():
                 terminal = 'stringConstant'
                 newNode = ET.SubElement(parent, terminal)
@@ -403,13 +464,13 @@ class CompilationEngine(object):
         self.t.advance()
         return
 
-    def write_variable_token(self, parent, category=None, defined=False):
+    def write_variable_token(self, parent, kind=None, defined=False):
         terminal = 'identifier'
         token = self.t.identifier()
         newNode = ET.SubElement(parent, terminal)
         newNode.text = token + '\n'
-        newNode.text += category + '\n'
-        if category in ['var', 'arg', 'field', 'static']:
+        newNode.text += kind + '\n'
+        if kind in ['var', 'arg', 'field', 'static']:
             newNode.text += str(self.symTable.index_of(token)) + '\n'
         if defined:
             newNode.text += 'defined' + '\n'
