@@ -191,8 +191,8 @@ class CompilationEngine(object):
         doNode = ET.SubElement(self.stmntNode, 'doStatement')
         savedNode = self.expressNode
         lookAhead = ''
-        current_subrout_scope = self.symTable.subDict
-        self.symTable.start_subroutine()
+        # current_subrout_scope = self.symTable.subDict
+        # self.symTable.start_subroutine()
         self.write_token(doNode, 'do')
         lookAhead = self.t.tokens[self.t.tokenIndex + 1]
 
@@ -205,7 +205,7 @@ class CompilationEngine(object):
             self.expressNode = savedNode
             self.write_token(doNode, ')')
             self.write_token(doNode, ';')
-            self.symTable.subDict = current_subrout_scope
+            # self.symTable.subDict = current_subrout_scope
 
             return
         else:
@@ -220,7 +220,7 @@ class CompilationEngine(object):
             self.expressNode = savedNode
             self.write_token(doNode, ')')
             self.write_token(doNode, ';')
-            self.symTable.subDict = current_subrout_scope
+            # self.symTable.subDict = current_subrout_scope
 
             return
 
