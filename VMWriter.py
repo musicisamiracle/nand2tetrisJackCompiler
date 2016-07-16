@@ -13,8 +13,8 @@ class VMWriter(object):
         self.debugOut += 'pop ' + segment + ' ' + index + '\n'
 
     def write_arithmetic(self, command):  # not sure how to do neg
-        op = {'+': 'add', '-': ['sub', 'neg'], '*': 'call Math.multiply',
-              '/': 'call Math.divide', '&': 'and', '|': 'or', '<': 'lt',
+        op = {'+': 'add', '-': ['sub', 'neg'], '*': 'call Math.multiply 2',
+              '/': 'call Math.divide 2', '&': 'and', '|': 'or', '<': 'lt',
               '>': 'gt', '=': 'eq', '~': 'not'}
         if command == '-':
             pass
