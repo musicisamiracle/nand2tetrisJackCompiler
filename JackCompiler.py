@@ -5,6 +5,7 @@ try:
     c = CompilationEngine('Seven/Main.jack')
     c.compile_class()
     print ET.tostring(c.xmlNew, pretty_print=True)
+    print c.vm.debugOut
 except:
     print ET.tostring(c.xmlNew, pretty_print=True)
     raise

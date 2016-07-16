@@ -31,10 +31,10 @@ class VMWriter(object):
         self.debugOut += 'if-goto ' + label + '\n'
 
     def write_call(self, name, numArgs):
-        self.debugOut += 'call ' + name + ' ' + numArgs + '\n'
+        self.debugOut += 'call ' + name + ' ' + str(numArgs) + '\n'
 
     def write_function(self, name, numLocals):
-        self.debugOut += 'function ' + name + ' ' + numLocals + '\n'
+        self.debugOut += 'function ' + name + ' ' + str(numLocals) + '\n'
 
     def write_return(self):
         self.debugOut += 'return\n'
@@ -43,7 +43,7 @@ class VMWriter(object):
         # self.vmFile.close()
         pass
 
-v = VMWriter()
+"""v = VMWriter()
 v.write_push('static', '0')
 v.write_pop('field', '1')
 v.write_arithmetic('+')
@@ -53,4 +53,4 @@ v.write_if('NOW')
 v.write_call('Awesome.test', '1')
 v.write_function('Awesome.test', '1')
 v.write_return()
-print v.debugOut
+print v.debugOut"""
