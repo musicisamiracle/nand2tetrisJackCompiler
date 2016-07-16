@@ -10,6 +10,7 @@ class Tokenizer(object):
         self.mlComment = False
         self.tokens = []
         self.tokenIndex = 0
+        self.currentToken = ''
 
     def get_line(self):
         self.line = self.jackFile.readline()
@@ -116,6 +117,7 @@ class Tokenizer(object):
             self.tokenIndex += 1
         else:
             self.tokenize_line()
+        self.currentToken = self.tokens[self.tokenIndex]
         return
 
     def token_type(self):
