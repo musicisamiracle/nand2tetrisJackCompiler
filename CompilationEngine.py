@@ -21,6 +21,7 @@ class CompilationEngine(object):
         self.termNode = None
         self.types = ['int', 'char', 'boolean', 'void']
         self.stmnt = ['do', 'let', 'if', 'while', 'return']
+        self.subroutType = ''
 
     def compile_class(self):
 
@@ -73,7 +74,7 @@ class CompilationEngine(object):
         self.write_token(self.subroutNode, ['constructor', 'function',
                                             'method'])
 
-        subroutType = self.t.currentToken
+        self.subroutType = self.t.currentToken
         self.write_token(self.subroutNode, ['int', 'char',
                                             'boolean', 'void',
                                             'IDENTIFIER'], kind='class')
@@ -108,9 +109,6 @@ class CompilationEngine(object):
 
         self.write_token(self.subBodyNode, '}')
 
-        if subroutType == 'void':
-            self.vm.write_push('constant', '0')
-        self.vm.write_return()
         return
 
     def compile_parameter_list(self):
@@ -296,10 +294,15 @@ class CompilationEngine(object):
         self.write_token(returnNode, 'return')
         if self.t.symbol() == ';':
             self.write_token(returnNode, ';')
+
+            if self.subroutType == 'void':
+                self.vm.write_push('constant', '0')
+                self.vm.write_return()
         else:
             self.expressNode = ET.SubElement(returnNode, 'expression')
             self.compile_expression()
             self.write_token(returnNode, ';')
+            self.vm.write_return()
 
         return
 
@@ -420,9 +423,10 @@ class CompilationEngine(object):
             else:
                 name = self.t.identifier()
                 kind = self.symTable.kind_of(name)
+                index = self.symTable.index_of(name)
                 self.write_token(self.termNode, 'IDENTIFIER',
                                  kind=kind)  # varName
-
+                self.vm.write_push(kind, index)
         else:
             raise Exception(self.t.currentToken +
                             ' is not valid')

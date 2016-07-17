@@ -7,10 +7,10 @@ class VMWriter(object):
         self.debugOut = ''
 
     def write_push(self, segment, index):
-        self.debugOut += 'push ' + segment + ' ' + index + '\n'
+        self.debugOut += 'push ' + segment + ' ' + str(index) + '\n'
 
     def write_pop(self, segment, index):
-        self.debugOut += 'pop ' + segment + ' ' + index + '\n'
+        self.debugOut += 'pop ' + segment + ' ' + str(index) + '\n'
 
     def write_arithmetic(self, command):  # not sure how to do neg
         op = {'+': 'add', '-': ['sub', 'neg'], '*': 'call Math.multiply 2',
