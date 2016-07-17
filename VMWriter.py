@@ -12,12 +12,15 @@ class VMWriter(object):
     def write_pop(self, segment, index):
         self.debugOut += 'pop ' + segment + ' ' + str(index) + '\n'
 
-    def write_arithmetic(self, command):  # not sure how to do neg
-        op = {'+': 'add', '-': ['sub', 'neg'], '*': 'call Math.multiply 2',
+    def write_arithmetic(self, command, neg=False):  # not sure how to do neg
+        op = {'+': 'add', '*': 'call Math.multiply 2',
               '/': 'call Math.divide 2', '&': 'and', '|': 'or', '<': 'lt',
               '>': 'gt', '=': 'eq', '~': 'not'}
         if command == '-':
-            pass
+            if neg:
+                self.debugOut += 'neg\n'
+            else:
+                self.debugOut += 'sub\n'
         else:
             self.debugOut += op[command] + '\n'
 

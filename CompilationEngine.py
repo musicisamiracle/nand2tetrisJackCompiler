@@ -342,11 +342,12 @@ class CompilationEngine(object):
         self.compile_term()
         self.termNode = savedNode
         while self.t.symbol() in op:
+            opToken = self.t.currentToken
             self.write_token(self.expressNode, op)
             self.termNode = ET.SubElement(self.expressNode, 'term')
             self.compile_term()
+            self.vm.write_arithmetic(opToken)
             self.termNode = savedNode
-
         return
 
     def compile_term(self):
@@ -365,13 +366,24 @@ class CompilationEngine(object):
         elif self.t.token_type() == 'STRING_CONST':
             self.write_token(self.termNode, 'STRING_CONST')
         elif self.t.token_type() == 'KEYWORD':
-            self.write_token(self.termNode, keyConst)
+            if self.t.currentToken in ['false', 'null']:
+                self.write_token(self.termNode, keyConst)
+                self.vm.write_push('constant', '0')
+            elif self.t.currentToken == 'true':
+                self.write_token(self.termNode, keyConst)
+                self.vm.write_push('constant', '1')
+                self.vm.write_arithmetic('-', neg=True)
+            else:
+                self.write_token(self.termNode, keyConst)
+                self.vm.write_push('this', '0')
 
         elif self.t.token_type() == 'SYMBOL':
             if self.t.symbol() in unOps:  # unary operator
+                unOpToken = self.t.currentToken
                 self.write_token(self.termNode, unOps)
                 self.termNode = ET.SubElement(self.termNode, 'term')
                 self.compile_term()
+                self.vm.write_arithmetic(unOpToken, neg=True)
                 self.termNode = savedOpTermNode
             elif self.t.symbol() == '(':  # (expression))
                 self.write_token(self.termNode, '(')
@@ -396,26 +408,32 @@ class CompilationEngine(object):
 
             elif lookAhead == '(':  # subcall
                 current_subrout_scope = self.symTable.subDict
+                name = self.t.currentToken
                 self.write_token(self.termNode, 'IDENTIFIER',
                                  kind='subroutine')
                 self.write_token(self.termNode, '(')
                 self.expressNode = ET.SubElement(self.termNode,
                                                  'expressionList')
-                self.compile_expression_list()
+                numArgs = self.compile_expression_list()
+                self.vm.write_call(name, numArgs)
                 self.expressNode = savedNode
                 self.write_token(self.termNode, ')')
                 self.symTable.subDict = current_subrout_scope
 
             elif lookAhead == '.':  # name.subroutName(expressList)
                 current_subrout_scope = self.symTable.subDict
+                className = self.t.currentToken
                 self.write_token(self.termNode, 'IDENTIFIER', kind='class')
                 self.write_token(self.termNode, '.')
+                subroutName = self.t.currentToken
                 self.write_token(self.termNode, 'IDENTIFIER',
                                  kind='subroutine')
+                name = className + '.' + subroutName
                 self.write_token(self.termNode, '(')
                 self.expressNode = ET.SubElement(self.termNode,
                                                  'expressionList')
-                self.compile_expression_list()
+                numArgs = self.compile_expression_list()
+                self.vm.write_call(name, numArgs)
                 self.expressNode = savedNode
 
                 self.write_token(self.termNode, ')')
