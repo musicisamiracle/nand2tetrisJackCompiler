@@ -2,7 +2,6 @@ from lxml import etree as ET
 from JackTokenizer import Tokenizer
 from SymbolTable import SymbolTable
 from VMWriter import VMWriter
-"""Not certain about start_subroutine"""
 
 
 class CompilationEngine(object):
