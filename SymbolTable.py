@@ -28,11 +28,13 @@ class SymbolTable(object):
                                     'index': self.fieldIndex}
             self.fieldIndex += 1
         elif kind == 'arg':
+            kind = 'argument'
             self.subDict[name] = {'type': type,
                                   'kind': kind,
                                   'index': self.argIndex}
             self.argIndex += 1
         elif kind == 'var':
+            kind = 'local'
             self.subDict[name] = {'type': type,
                                   'kind': kind,
                                   'index': self.varIndex}

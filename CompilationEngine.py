@@ -10,9 +10,9 @@ class CompilationEngine(object):
     def __init__(self, inFile):
         self.t = Tokenizer(inFile)
         self.symTable = SymbolTable()
-        self.vm = VMWriter()
-        self.className = ''
         self.vmName = inFile.rstrip('.jack') + '.vm'
+        self.vm = VMWriter(self.vmName)
+        self.className = ''
         self.xmlNew = None
         self.subroutNode = None
         self.subBodyNode = None
@@ -22,6 +22,8 @@ class CompilationEngine(object):
         self.types = ['int', 'char', 'boolean', 'void']
         self.stmnt = ['do', 'let', 'if', 'while', 'return']
         self.subroutType = ''
+        self.whileIndex = 0
+        self.ifIndex = 0
 
     def compile_class(self):
 
@@ -36,6 +38,7 @@ class CompilationEngine(object):
         while self.t.symbol() != '}':   # subroutines
             self.compile_subroutine()
         self.write_token(self.xmlNew, '}')
+        self.vm.close()
         return
 
     def compile_class_var_dec(self):
@@ -67,6 +70,8 @@ class CompilationEngine(object):
         return
 
     def compile_subroutine(self):
+        current_subrout_scope = self.symTable.subDict
+        self.symTable.start_subroutine()
 
         self.subroutNode = ET.SubElement(self.xmlNew, 'subroutineDec')
 
@@ -108,7 +113,9 @@ class CompilationEngine(object):
             self.compile_statements()
 
         self.write_token(self.subBodyNode, '}')
-
+        self.symTable.subDict = current_subrout_scope
+        self.whileIndex = 0
+        self.ifIndex = 0
         return
 
     def compile_parameter_list(self):
@@ -196,12 +203,9 @@ class CompilationEngine(object):
         return
 
     def compile_do(self):
-        "Need to implement start_subroutine"
         doNode = ET.SubElement(self.stmntNode, 'doStatement')
         savedNode = self.expressNode
         lookAhead = ''
-        # current_subrout_scope = self.symTable.subDict
-        # self.symTable.start_subroutine()
         self.write_token(doNode, 'do')
         lookAhead = self.t.tokens[self.t.tokenIndex + 1]
 
@@ -218,7 +222,6 @@ class CompilationEngine(object):
             self.expressNode = savedNode
             self.write_token(doNode, ')')
             self.write_token(doNode, ';')
-            # self.symTable.subDict = current_subrout_scope
 
             return
         else:
@@ -250,6 +253,7 @@ class CompilationEngine(object):
         while self.t.symbol() != ';':
             name = self.t.identifier()
             kind = self.symTable.kind_of(name)
+            index = self.symTable.index_of(name)
             if name in self.symTable.classDict:
                 self.write_token(letNode, 'IDENTIFIER', kind=kind)
             elif name in self.symTable.subDict:
@@ -265,7 +269,7 @@ class CompilationEngine(object):
             self.write_token(letNode, '=')
             self.expressNode = ET.SubElement(letNode, 'expression')
             self.compile_expression()
-
+            self.vm.write_pop(kind, index)
         self.write_token(letNode, ';')
 
         return
@@ -273,20 +277,25 @@ class CompilationEngine(object):
     def compile_while(self):
         whileNode = ET.SubElement(self.stmntNode, 'whileStatement')
         savedNode = self.stmntNode
+        currentWhile = 'WHILE' + str(self.whileIndex)
+        self.vm.write_label(currentWhile)
+        self.whileIndex += 1
         self.write_token(whileNode, 'while')
         self.write_token(whileNode, '(')
         self.expressNode = ET.SubElement(whileNode, 'expression')
         self.compile_expression()
-
+        self.vm.write_arithmetic('~')
+        self.vm.write_if('END' + currentWhile)
         self.write_token(whileNode, ')')
         self.write_token(whileNode, '{')
 
         self.stmntNode = ET.SubElement(whileNode, 'statements')
         self.compile_statements()
+        self.vm.write_goto(currentWhile)
         self.stmntNode = savedNode
 
         self.write_token(whileNode, '}')
-
+        self.vm.write_label('END' + currentWhile)
         return
 
     def compile_return(self):
@@ -309,20 +318,28 @@ class CompilationEngine(object):
     def compile_if(self):
         savedNode = self.stmntNode  # necessary for nested statements
         ifNode = ET.SubElement(self.stmntNode, 'ifStatement')
+        endIf = 'END_IF' + str(self.ifIndex)
+        currentElse = 'IF_ELSE' + str(self.ifIndex)
+        self.ifIndex += 1
         self.write_token(ifNode, 'if')
         self.write_token(ifNode, '(')
 
         self.expressNode = ET.SubElement(ifNode, 'expression')
         self.compile_expression()
+        self.vm.write_arithmetic('~')
+        self.vm.write_if(currentElse)
 
         self.write_token(ifNode, ')')
         self.write_token(ifNode, '{')
 
         self.stmntNode = ET.SubElement(ifNode, 'statements')
         self.compile_statements()
+        self.vm.write_goto(endIf)
         self.stmntNode = savedNode
 
         self.write_token(ifNode, '}')
+        self.vm.write_label(currentElse)
+
         if self.t.keyword() == 'else':
             self.write_token(ifNode, 'else')
             self.write_token(ifNode, '{')
@@ -332,7 +349,7 @@ class CompilationEngine(object):
             self.stmntNode = savedNode
 
             self.write_token(ifNode, '}')
-
+        self.vm.write_label(endIf)
         return
 
     def compile_expression(self):
