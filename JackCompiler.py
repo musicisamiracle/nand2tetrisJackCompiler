@@ -5,15 +5,15 @@ import os
 
 """Need to change access to class variables into class methods"""
 
-try:
+"""try:
     c = CE.CompilationEngine('ConvertToBin/Main.jack')
     c.compile_class()
     print c.vm.debugOut
 except:
-    raise
+    raise"""
 
 
-"""def main():
+def main():
 
     script, fileName = sys.argv
     fileName = fileName
@@ -55,4 +55,3 @@ except:
 
 if __name__ == "__main__":
     main()
-"""

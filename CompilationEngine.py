@@ -33,7 +33,7 @@ class CompilationEngine(object):
         self.write_token(self.xmlNew, 'IDENTIFIER',
                          kind='class', defined=True)
         self.write_token(self.xmlNew, '{')
-        self.compile_class_var_dec()
+        fieldNum = self.compile_class_var_dec() """stopped here"""
         while self.t.symbol() != '}':   # subroutines
             self.compile_subroutine()
         self.write_token(self.xmlNew, '}')
@@ -45,7 +45,7 @@ class CompilationEngine(object):
         name = ''
         kind = ''
         varType = ''
-
+        counter = 0
         while self.t.keyword() in varKeyWords:
             varNode = ET.SubElement(self.xmlNew, 'classVarDec')
             kind = self.t.currentToken
@@ -58,6 +58,9 @@ class CompilationEngine(object):
             self.symTable.define(name, varType, kind)
             self.write_token(varNode, 'IDENTIFIER',
                              kind=kind, defined=True)  # varName
+            if kind == 'field':
+                counter += 1
+
             self.validator('SYMBOL')
             while self.t.symbol() != ';':  # checks multiple vars
                 self.write_token(varNode, ',')
@@ -65,8 +68,10 @@ class CompilationEngine(object):
                 self.symTable.define(name, varType, kind)
                 self.write_token(varNode, 'IDENTIFIER',
                                  kind=kind, defined=True)
+                if kind == 'field':
+                    counter += 1
             self.write_token(varNode, ';')
-        return
+        return counter
 
     def compile_subroutine(self):
         current_subrout_scope = self.symTable.subDict
