@@ -23,6 +23,7 @@ class CompilationEngine(object):
         self.subroutType = ''
         self.whileIndex = 0
         self.ifIndex = 0
+        self.fieldNum = 0
 
     def compile_class(self):
 
@@ -33,7 +34,7 @@ class CompilationEngine(object):
         self.write_token(self.xmlNew, 'IDENTIFIER',
                          kind='class', defined=True)
         self.write_token(self.xmlNew, '{')
-        fieldNum = self.compile_class_var_dec() """stopped here"""
+        self.fieldNum = self.compile_class_var_dec()
         while self.t.symbol() != '}':   # subroutines
             self.compile_subroutine()
         self.write_token(self.xmlNew, '}')
@@ -111,7 +112,10 @@ class CompilationEngine(object):
             self.vm.write_function(subroutName, numLocals)
         else:
             self.vm.write_function(subroutName, 0)
-
+            if subroutKword == 'constructor':
+                self.vm.write_push('constant', self.fieldNum)
+                self.vm.write_call('Memory.alloc', 1)
+                self.vm.write_pop('pointer', 0)
         if self.t.keyword() in self.stmnt:
             self.stmntNode = ET.SubElement(self.subBodyNode, 'statements')
             self.compile_statements()
@@ -221,6 +225,9 @@ class CompilationEngine(object):
             self.expressNode = ET.SubElement(doNode, 'expressionList')
 
             numArgs = self.compile_expression_list()
+            print numArgs
+            if not numArgs:
+                numArgs = 0
             self.vm.write_call(subroutName, numArgs)
 
             self.expressNode = savedNode
@@ -240,6 +247,9 @@ class CompilationEngine(object):
             self.expressNode = ET.SubElement(doNode, 'expressionList')
 
             numArgs = self.compile_expression_list()
+            print numArgs
+            if not numArgs:
+                numArgs = 0
             self.vm.write_call(subroutName, numArgs)
 
             self.expressNode = savedNode

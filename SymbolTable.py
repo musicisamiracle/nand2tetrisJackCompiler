@@ -23,6 +23,7 @@ class SymbolTable(object):
                                     'index': self.staticIndex}
             self.staticIndex += 1
         elif kind == 'field':
+            kind = 'this'
             self.classDict[name] = {'type': type,
                                     'kind': kind,
                                     'index': self.fieldIndex}
