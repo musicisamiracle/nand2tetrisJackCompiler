@@ -116,6 +116,9 @@ class CompilationEngine(object):
                 self.vm.write_push('constant', self.fieldNum)
                 self.vm.write_call('Memory.alloc', 1)
                 self.vm.write_pop('pointer', 0)
+            elif subroutKword == 'method':
+                self.vm.write_push('argument', 0)
+                self.vm.write_pop('pointer', 0)
         if self.t.keyword() in self.stmnt:
             self.stmntNode = ET.SubElement(self.subBodyNode, 'statements')
             self.compile_statements()
@@ -224,16 +227,14 @@ class CompilationEngine(object):
             self.write_token(doNode, '(')
             self.expressNode = ET.SubElement(doNode, 'expressionList')
 
+            self.vm.write_push('pointer', 0)
             numArgs = self.compile_expression_list()
-            print numArgs
-            if not numArgs:
-                numArgs = 0
-            self.vm.write_call(subroutName, numArgs)
+            self.vm.write_call(subroutName, numArgs + 1)  # add 1 for 'this'
 
             self.expressNode = savedNode
             self.write_token(doNode, ')')
             self.write_token(doNode, ';')
-
+            self.vm.write_pop('temp', 0)  # throws away returned value
             return
         else:
             className = self.t.currentToken
@@ -246,17 +247,19 @@ class CompilationEngine(object):
             self.write_token(doNode, '(')
             self.expressNode = ET.SubElement(doNode, 'expressionList')
 
-            numArgs = self.compile_expression_list()
-            print numArgs
-            if not numArgs:
-                numArgs = 0
-            self.vm.write_call(subroutName, numArgs)
+            if self.symTable.kind_of(className) in ['this', 'static']:
+                # used 'this' for 'field'
+                self.vm.write_push('pointer', 0)
+                numArgs = self.compile_expression_list()
+                self.vm.write_call(subroutName, numArgs + 1)
+            else:
+                numArgs = self.compile_expression_list()
+                self.vm.write_call(subroutName, numArgs)
 
             self.expressNode = savedNode
             self.write_token(doNode, ')')
             self.write_token(doNode, ';')
-            # self.symTable.subDict = current_subrout_scope
-
+            self.vm.write_pop('temp', 0)
             return
 
     def compile_let(self):
@@ -406,7 +409,7 @@ class CompilationEngine(object):
                 self.vm.write_arithmetic('-', neg=True)
             else:
                 self.write_token(self.termNode, keyConst)
-                self.vm.write_push('this', '0')
+                self.vm.write_push('pointer', '0')
 
         elif self.t.token_type() == 'SYMBOL':
             if self.t.symbol() in unOps:  # unary operator
@@ -487,7 +490,7 @@ class CompilationEngine(object):
         counter = 0
         if self.t.symbol() == ')':
             self.expressNode.text = '\n'
-            return
+            return counter
         else:
             self.expressNode = ET.SubElement(savedNode, 'expression')
             self.compile_expression()
