@@ -107,18 +107,20 @@ class CompilationEngine(object):
             return
 
         self.validator('KEYWORD')
+        numLocals = 0
         if self.t.keyword() == 'var':
             numLocals = self.compile_var_dec()
-            self.vm.write_function(subroutName, numLocals)
-        else:
-            self.vm.write_function(subroutName, 0)
-            if subroutKword == 'constructor':
-                self.vm.write_push('constant', self.fieldNum)
-                self.vm.write_call('Memory.alloc', 1)
-                self.vm.write_pop('pointer', 0)
-            elif subroutKword == 'method':
-                self.vm.write_push('argument', 0)
-                self.vm.write_pop('pointer', 0)
+
+        self.vm.write_function(subroutName, numLocals)
+
+        if subroutKword == 'constructor':
+            self.vm.write_push('constant', self.fieldNum)
+            self.vm.write_call('Memory.alloc', 1)
+            self.vm.write_pop('pointer', 0)
+        elif subroutKword == 'method':
+            self.vm.write_push('argument', 0)
+            self.vm.write_pop('pointer', 0)
+
         if self.t.keyword() in self.stmnt:
             self.stmntNode = ET.SubElement(self.subBodyNode, 'statements')
             self.compile_statements()
@@ -241,18 +243,24 @@ class CompilationEngine(object):
             self.write_token(doNode, 'IDENTIFIER', kind='class')
 
             self.write_token(doNode, '.')  # name.subroutine(exprList)
-            subroutName = className + '.' + self.t.currentToken
+            subroutName = self.t.currentToken
             self.write_token(doNode, 'IDENTIFIER', kind='subroutine')
 
             self.write_token(doNode, '(')
             self.expressNode = ET.SubElement(doNode, 'expressionList')
 
-            if self.symTable.kind_of(className) in ['this', 'static']:
+            if self.symTable.kind_of(className) in ['this', 'static',
+                                                    'local', 'argument']:
                 # used 'this' for 'field'
-                self.vm.write_push('pointer', 0)
+                typeName = self.symTable.type_of(className)
+                subroutName = typeName + '.' + subroutName
+                segment = self.symTable.kind_of(className)
+                index = self.symTable.index_of(className)
+                self.vm.write_push(segment, index)
                 numArgs = self.compile_expression_list()
                 self.vm.write_call(subroutName, numArgs + 1)
             else:
+                subroutName = className + '.' + subroutName
                 numArgs = self.compile_expression_list()
                 self.vm.write_call(subroutName, numArgs)
 
@@ -442,14 +450,14 @@ class CompilationEngine(object):
 
             elif lookAhead == '(':  # subcall
                 current_subrout_scope = self.symTable.subDict
-                name = self.t.currentToken
+                name = self.className + '.' + self.t.currentToken
                 self.write_token(self.termNode, 'IDENTIFIER',
                                  kind='subroutine')
                 self.write_token(self.termNode, '(')
                 self.expressNode = ET.SubElement(self.termNode,
                                                  'expressionList')
                 numArgs = self.compile_expression_list()
-                self.vm.write_call(name, numArgs)
+                self.vm.write_call(name, numArgs + 1)
                 self.expressNode = savedNode
                 self.write_token(self.termNode, ')')
                 self.symTable.subDict = current_subrout_scope
@@ -466,8 +474,19 @@ class CompilationEngine(object):
                 self.write_token(self.termNode, '(')
                 self.expressNode = ET.SubElement(self.termNode,
                                                  'expressionList')
-                numArgs = self.compile_expression_list()
-                self.vm.write_call(name, numArgs)
+                # numArgs = self.compile_expression_list()
+                if self.symTable.kind_of(className) in ['this', 'static',
+                                                        'local', 'argument']:
+                    # used 'this' for 'field'
+                    className = self.symTable.type_of(className)
+                    name = className + '.' + subroutName
+                    self.vm.write_push('pointer', 0)
+                    numArgs = self.compile_expression_list()
+                    self.vm.write_call(name, numArgs + 1)
+                else:
+                    numArgs = self.compile_expression_list()
+                    self.vm.write_call(name, numArgs)
+                # self.vm.write_call(name, numArgs)
                 self.expressNode = savedNode
 
                 self.write_token(self.termNode, ')')
