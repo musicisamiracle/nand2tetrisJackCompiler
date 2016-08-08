@@ -273,12 +273,14 @@ class CompilationEngine(object):
     def compile_let(self):
         name = ''
         kind = ''
+        array = False
         letNode = ET.SubElement(self.stmntNode, 'letStatement')
         self.write_token(letNode, 'let')
         while self.t.symbol() != ';':
             name = self.t.identifier()
             kind = self.symTable.kind_of(name)
             index = self.symTable.index_of(name)
+            # need to write next if statement better. Need to verify in scope.
             if name in self.symTable.classDict:
                 self.write_token(letNode, 'IDENTIFIER', kind=kind)
             elif name in self.symTable.subDict:
@@ -286,15 +288,25 @@ class CompilationEngine(object):
             else:
                 raise Exception(self.t.identifier() + ' is not defined')
             if self.t.symbol() == '[':  # array index
+                array = True
+                """if there are issues with arrays later, look here"""
+                self.vm.write_push(kind, index)
                 self.write_token(letNode, '[')
                 self.expressNode = ET.SubElement(letNode, 'expression')
                 self.compile_expression()
                 self.write_token(letNode, ']')
+                self.vm.write_arithmetic('+')
 
             self.write_token(letNode, '=')
             self.expressNode = ET.SubElement(letNode, 'expression')
             self.compile_expression()
-            self.vm.write_pop(kind, index)
+            if array:
+                self.vm.write_pop('temp', 0)
+                self.vm.write_pop('pointer', 1)
+                self.vm.write_push('temp', 0)
+                self.vm.write_pop('that', 0)
+            else:
+                self.vm.write_pop(kind, index)
         self.write_token(letNode, ';')
 
         return
@@ -406,7 +418,16 @@ class CompilationEngine(object):
             self.vm.write_push('constant', self.t.currentToken)
             self.write_token(self.termNode, 'INT_CONST')
         elif self.t.token_type() == 'STRING_CONST':
+            string = self.t.currentToken.strip('"')
+            length = len(string)
+            self.vm.write_push('constant', length)
+            self.vm.write_call('String.new', 1)
+            for char in string:
+                char = ord(char)
+                self.vm.write_push('constant', char)
+                self.vm.write_call('String.appendChar', 2)
             self.write_token(self.termNode, 'STRING_CONST')
+
         elif self.t.token_type() == 'KEYWORD':
             if self.t.currentToken in ['false', 'null']:
                 self.write_token(self.termNode, keyConst)
@@ -441,10 +462,18 @@ class CompilationEngine(object):
             if lookAhead == '[':  # array item
                 name = self.t.identifier()
                 kind = self.symTable.kind_of(name)
+                index = self.symTable.index_of(name)
+                # validate in scope?
+                self.vm.write_push(kind, index)
                 self.write_token(self.termNode, 'IDENTIFIER', kind=kind)
                 self.write_token(self.termNode, '[')
                 self.expressNode = ET.SubElement(self.termNode, 'expression')
                 self.compile_expression()
+
+                self.vm.write_arithmetic('+')
+                self.vm.write_pop('pointer', 1)
+                self.vm.write_push('that', 0)
+
                 self.expressNode = savedNode
                 self.write_token(self.termNode, ']')
 
