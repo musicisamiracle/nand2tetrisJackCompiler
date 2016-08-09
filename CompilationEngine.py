@@ -53,7 +53,7 @@ class CompilationEngine(object):
             self.write_token(varNode, varKeyWords)
             # variable type
             varType = self.t.currentToken
-            self.write_token(varNode, ['int', 'char', 'bool', 'IDENTIFIER'],
+            self.write_token(varNode, ['int', 'char', 'boolean', 'IDENTIFIER'],
                              kind='class')
             name = self.t.currentToken
             self.symTable.define(name, varType, kind)
@@ -95,7 +95,10 @@ class CompilationEngine(object):
                          kind='subroutine', defined=True)
         self.write_token(self.subroutNode, '(')
 
-        self.compile_parameter_list()
+        if subroutKword == 'method':
+            self.compile_parameter_list(method=True)
+        else:
+            self.compile_parameter_list()
 
         self.write_token(self.subroutNode, ')')
         self.validator('{')
@@ -131,7 +134,7 @@ class CompilationEngine(object):
         self.ifIndex = 0
         return
 
-    def compile_parameter_list(self):
+    def compile_parameter_list(self, method=False):
         name = ''
         varType = ''
         kind = ''
@@ -147,7 +150,11 @@ class CompilationEngine(object):
                                      'IDENTIFIER'], kind='class')
         kind = 'arg'
         name = self.t.currentToken
-        self.symTable.define(name, varType, kind)
+        if method:
+            self.symTable.define(name, varType, kind, method=True)
+        else:
+            self.symTable.define(name, varType, kind)
+
         self.write_token(paramNode, 'IDENTIFIER',
                          kind='arg', defined=True)
         counter += 1
@@ -507,9 +514,12 @@ class CompilationEngine(object):
                 if self.symTable.kind_of(className) in ['this', 'static',
                                                         'local', 'argument']:
                     # used 'this' for 'field'
-                    className = self.symTable.type_of(className)
-                    name = className + '.' + subroutName
-                    self.vm.write_push('pointer', 0)
+                    classType = self.symTable.type_of(className)
+                    name = classType + '.' + subroutName
+                    kind = self.symTable.kind_of(className)
+                    index = self.symTable.index_of(className)
+                    # self.vm.write_push('pointer', 0)
+                    self.vm.write_push(kind, index)
                     numArgs = self.compile_expression_list()
                     self.vm.write_call(name, numArgs + 1)
                 else:

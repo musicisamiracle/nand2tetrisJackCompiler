@@ -16,7 +16,7 @@ class SymbolTable(object):
         self.varIndex = 0
         return
 
-    def define(self, name, type, kind):
+    def define(self, name, type, kind, method=False):
         if kind == 'static':
             self.classDict[name] = {'type': type,
                                     'kind': kind,
@@ -30,6 +30,8 @@ class SymbolTable(object):
             self.fieldIndex += 1
         elif kind == 'arg':
             kind = 'argument'
+            if method:
+                self.argIndex = 1
             self.subDict[name] = {'type': type,
                                   'kind': kind,
                                   'index': self.argIndex}
