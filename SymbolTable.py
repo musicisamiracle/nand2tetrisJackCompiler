@@ -10,7 +10,7 @@ class SymbolTable(object):
         self.argIndex = 0
         self.varIndex = 0
 
-    def start_subroutine(self):  # need to consider nesting functions
+    def start_subroutine(self):
         self.subDict = {}
         self.argIndex = 0
         self.varIndex = 0
