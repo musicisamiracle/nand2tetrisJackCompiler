@@ -396,25 +396,18 @@ class CompilationEngine(object):
         self.vm.write_label(endIf)
         return
 
-    def compile_expression(self):
+    def compile_expression(self):  # noXML
         op = ['+', '-', '*', '/', '&', '|', '<', '>', '=']
-        savedNode = self.termNode
-        self.termNode = ET.SubElement(self.expressNode, 'term')
         self.compile_term()
-        self.termNode = savedNode
         while self.t.symbol() in op:
             opToken = self.t.currentToken
-            self.write_token(self.expressNode, op)
-            self.termNode = ET.SubElement(self.expressNode, 'term')
+            self.t.advance()
             self.compile_term()
             self.vm.write_arithmetic(opToken)
-            self.termNode = savedNode
         return
 
-    def compile_term(self):
+    def compile_term(self):  # noXML
 
-        savedNode = self.expressNode
-        savedOpTermNode = self.termNode
         keyConst = ['true', 'false', 'null', 'this']
         unOps = ['-', '~']
         lookAhead = ''
@@ -423,44 +416,41 @@ class CompilationEngine(object):
 
         if self.t.token_type() == 'INT_CONST':
             self.vm.write_push('constant', self.t.currentToken)
-            self.write_token(self.termNode, 'INT_CONST')
+            self.t.advance()
         elif self.t.token_type() == 'STRING_CONST':
             string = self.t.currentToken.strip('"')
             length = len(string)
             self.vm.write_push('constant', length)
             self.vm.write_call('String.new', 1)
             for char in string:
-                char = ord(char)
+                char = ord(char)  # gives the ASCII number
                 self.vm.write_push('constant', char)
                 self.vm.write_call('String.appendChar', 2)
-            self.write_token(self.termNode, 'STRING_CONST')
+            self.t.advance()
 
         elif self.t.token_type() == 'KEYWORD':
+            self.validator(keyConst)
             if self.t.currentToken in ['false', 'null']:
-                self.write_token(self.termNode, keyConst)
+                self.t.advance()
                 self.vm.write_push('constant', '0')
             elif self.t.currentToken == 'true':
-                self.write_token(self.termNode, keyConst)
                 self.vm.write_push('constant', '1')
                 self.vm.write_arithmetic('-', neg=True)
+                self.t.advance()
             else:
-                self.write_token(self.termNode, keyConst)
                 self.vm.write_push('pointer', '0')
+                self.t.advance()
 
         elif self.t.token_type() == 'SYMBOL':
             if self.t.symbol() in unOps:  # unary operator
                 unOpToken = self.t.currentToken
-                self.write_token(self.termNode, unOps)
-                self.termNode = ET.SubElement(self.termNode, 'term')
+                self.t.advance()
                 self.compile_term()
                 self.vm.write_arithmetic(unOpToken, neg=True)
-                self.termNode = savedOpTermNode
             elif self.t.symbol() == '(':  # (expression))
-                self.write_token(self.termNode, '(')
-                self.expressNode = ET.SubElement(self.termNode, 'expression')
+                self.t.advance()
                 self.compile_expression()
-                self.expressNode = savedNode
-                self.write_token(self.termNode, ')')
+                self.t.advance()
             else:
                 raise Exception(self.t.currentToken +
                                 ' is not valid')
@@ -470,47 +460,48 @@ class CompilationEngine(object):
                 name = self.t.identifier()
                 kind = self.symTable.kind_of(name)
                 index = self.symTable.index_of(name)
-                # validate in scope?
+                if name in self.symTable.classDict:
+                    self.t.advance()
+                elif name in self.symTable.subDict:
+                    self.t.advance()
+                else:
+                    raise Exception(self.t.identifier() + ' is not defined')
                 self.vm.write_push(kind, index)
-                self.write_token(self.termNode, 'IDENTIFIER', kind=kind)
-                self.write_token(self.termNode, '[')
-                self.expressNode = ET.SubElement(self.termNode, 'expression')
+                self.validator('[')
+                self.t.advance()
                 self.compile_expression()
 
                 self.vm.write_arithmetic('+')
                 self.vm.write_pop('pointer', 1)
                 self.vm.write_push('that', 0)
 
-                self.expressNode = savedNode
-                self.write_token(self.termNode, ']')
+                self.validator(']')
+                self.t.advance()
 
             elif lookAhead == '(':  # subcall
                 current_subrout_scope = self.symTable.subDict
                 name = self.className + '.' + self.t.currentToken
-                self.write_token(self.termNode, 'IDENTIFIER',
-                                 kind='subroutine')
-                self.write_token(self.termNode, '(')
-                self.expressNode = ET.SubElement(self.termNode,
-                                                 'expressionList')
+                self.t.advance()
+                self.validator('(')
+                self.t.advance()
                 numArgs = self.compile_expression_list()
                 self.vm.write_call(name, numArgs + 1)
-                self.expressNode = savedNode
-                self.write_token(self.termNode, ')')
+                self.validator(')')
+                self.t.advance()
                 self.symTable.subDict = current_subrout_scope
 
             elif lookAhead == '.':  # name.subroutName(expressList)
                 current_subrout_scope = self.symTable.subDict
                 className = self.t.currentToken
-                self.write_token(self.termNode, 'IDENTIFIER', kind='class')
-                self.write_token(self.termNode, '.')
+                self.t.advance()
+                self.validator('.')
+                self.t.advance()
+                self.validator('IDENTIFIER')
                 subroutName = self.t.currentToken
-                self.write_token(self.termNode, 'IDENTIFIER',
-                                 kind='subroutine')
+                self.t.advance()
                 name = className + '.' + subroutName
-                self.write_token(self.termNode, '(')
-                self.expressNode = ET.SubElement(self.termNode,
-                                                 'expressionList')
-                # numArgs = self.compile_expression_list()
+                self.validator('(')
+                self.t.advance()
                 if self.symTable.kind_of(className) in ['this', 'static',
                                                         'local', 'argument']:
                     # used 'this' for 'field'
@@ -518,44 +509,36 @@ class CompilationEngine(object):
                     name = classType + '.' + subroutName
                     kind = self.symTable.kind_of(className)
                     index = self.symTable.index_of(className)
-                    # self.vm.write_push('pointer', 0)
                     self.vm.write_push(kind, index)
                     numArgs = self.compile_expression_list()
                     self.vm.write_call(name, numArgs + 1)
                 else:
                     numArgs = self.compile_expression_list()
                     self.vm.write_call(name, numArgs)
-                # self.vm.write_call(name, numArgs)
-                self.expressNode = savedNode
-
-                self.write_token(self.termNode, ')')
+                self.validator(')')
+                self.t.advance()
                 self.symTable.subDict = current_subrout_scope
             else:
-                name = self.t.identifier()
+                name = self.t.identifier()  # varName
                 kind = self.symTable.kind_of(name)
                 index = self.symTable.index_of(name)
-                self.write_token(self.termNode, 'IDENTIFIER',
-                                 kind=kind)  # varName
                 self.vm.write_push(kind, index)
+                self.t.advance()
         else:
             raise Exception(self.t.currentToken +
                             ' is not valid')
 
         return
 
-    def compile_expression_list(self):  # only in subroutineCall
-        savedNode = self.expressNode
+    def compile_expression_list(self):  # only in subroutineCall  noXML
         counter = 0
         if self.t.symbol() == ')':
-            self.expressNode.text = '\n'
             return counter
         else:
-            self.expressNode = ET.SubElement(savedNode, 'expression')
             self.compile_expression()
             counter += 1
             while self.t.symbol() == ',':
-                self.write_token(savedNode, ',')
-                self.expressNode = ET.SubElement(savedNode, 'expression')
+                self.t.advance()
                 self.compile_expression()
                 counter += 1
 
@@ -574,37 +557,6 @@ class CompilationEngine(object):
 
     def write_token(self, parent, syntax, kind=None, defined=False):
         if self.validator(syntax):
-            if self.t.keyword():
-                terminal = 'keyword'
-                newNode = ET.SubElement(parent, terminal)
-                newNode.text = ' ' + self.t.keyword() + ' '
-            elif self.t.symbol():
-                terminal = 'symbol'
-                newNode = ET.SubElement(parent, terminal)
-                newNode.text = ' ' + self.t.symbol() + ' '
-            elif self.t.identifier():
-                self.write_variable_token(parent,
-                                          kind=kind, defined=defined)
-            elif self.t.string_val():
-                terminal = 'stringConstant'
-                newNode = ET.SubElement(parent, terminal)
-                newNode.text = ' ' + self.t.string_val() + ' '
-            elif self.t.int_val():
-                terminal = 'integerConstant'
-                newNode = ET.SubElement(parent, terminal)
-                newNode.text = ' ' + self.t.int_val() + ' '
+            pass
         self.t.advance()
         return
-
-    def write_variable_token(self, parent, kind=None, defined=False):
-        terminal = 'identifier'
-        token = self.t.identifier()
-        newNode = ET.SubElement(parent, terminal)
-        newNode.text = token + '\n'
-        newNode.text += kind + '\n'
-        if kind in ['var', 'arg', 'field', 'static']:
-            newNode.text += str(self.symTable.index_of(token)) + '\n'
-        if defined:
-            newNode.text += 'defined' + '\n'
-        else:
-            newNode.text += 'used' + '\n'
