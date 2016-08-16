@@ -172,38 +172,35 @@ class CompilationEngine(object):
             counter += 1
         return counter
 
-    def compile_var_dec(self):
+    def compile_var_dec(self):  # noXML
         name = ''
         kind = ''
         varType = ''
         counter = 0
 
         while self.t.keyword() == 'var':  # check multiple lines of var
-            varDecNode = ET.SubElement(self.subBodyNode, 'varDec')
             kind = 'var'
-            self.write_token(varDecNode, 'var')
+            self.t.advance()
+            self.validator(['int', 'char', 'boolean', 'void', 'IDENTIFIER'])
             varType = self.t.currentToken
-            self.write_token(varDecNode, ['int', 'char',
-                                          'boolean', 'void',
-                                          'IDENTIFIER'], kind='class')
+            self.t.advance()
             name = self.t.currentToken
             self.symTable.define(name, varType, kind)
-            self.write_token(varDecNode, 'IDENTIFIER',
-                             kind='var', defined=True)  # varName
+            self.t.advance()
             counter += 1
 
             while self.t.symbol() == ',':  # multiple varNames
-                self.write_token(varDecNode, ',')
+                self.t.advance()
                 name = self.t.currentToken
                 self.symTable.define(name, varType, kind)
-                self.write_token(varDecNode, 'IDENTIFIER',
-                                 kind='var', defined=True)
+                self.t.advance()
                 counter += 1
-            self.write_token(varDecNode, ';')
+            self.validator(';')
+            self.t.advance()
 
         return counter
 
-    def compile_statements(self):
+    def compile_statements(self):  # noXML
 
         while self.t.keyword() in self.stmnt:
             if self.t.keyword() == 'let':
@@ -222,39 +219,36 @@ class CompilationEngine(object):
 
         return
 
-    def compile_do(self):
-        doNode = ET.SubElement(self.stmntNode, 'doStatement')
-        savedNode = self.expressNode
+    def compile_do(self):  # noXML
         lookAhead = ''
-        self.write_token(doNode, 'do')
+        self.t.advance()  # do
         lookAhead = self.t.tokens[self.t.tokenIndex + 1]
 
         if lookAhead == '(':  # subroutineName(exprlist)
             subroutName = self.className + '.' + self.t.currentToken
-            self.write_token(doNode, 'IDENTIFIER', kind='subroutine')
-
-            self.write_token(doNode, '(')
-            self.expressNode = ET.SubElement(doNode, 'expressionList')
+            self.t.advance()
+            self.validator('(')
+            self.t.advance()
 
             self.vm.write_push('pointer', 0)
             numArgs = self.compile_expression_list()
             self.vm.write_call(subroutName, numArgs + 1)  # add 1 for 'this'
 
-            self.expressNode = savedNode
-            self.write_token(doNode, ')')
-            self.write_token(doNode, ';')
+            self.validator(')')
+            self.t.advance()
+            self.validator(';')
+            self.t.advance()
             self.vm.write_pop('temp', 0)  # throws away returned value
             return
         else:
             className = self.t.currentToken
-            self.write_token(doNode, 'IDENTIFIER', kind='class')
-
-            self.write_token(doNode, '.')  # name.subroutine(exprList)
+            self.t.advance()
+            self.validator('.')  # name.subroutine(exprList)
+            self.t.advance()
             subroutName = self.t.currentToken
-            self.write_token(doNode, 'IDENTIFIER', kind='subroutine')
-
-            self.write_token(doNode, '(')
-            self.expressNode = ET.SubElement(doNode, 'expressionList')
+            self.t.advance()
+            self.validator('(')
+            self.t.advance()
 
             if self.symTable.kind_of(className) in ['this', 'static',
                                                     'local', 'argument']:
@@ -271,41 +265,41 @@ class CompilationEngine(object):
                 numArgs = self.compile_expression_list()
                 self.vm.write_call(subroutName, numArgs)
 
-            self.expressNode = savedNode
-            self.write_token(doNode, ')')
-            self.write_token(doNode, ';')
+            self.validator(')')
+            self.t.advance()
+            self.validator(';')
+            self.t.advance()
             self.vm.write_pop('temp', 0)
             return
 
-    def compile_let(self):
+    def compile_let(self):  # noXML
         name = ''
         kind = ''
         array = False
-        letNode = ET.SubElement(self.stmntNode, 'letStatement')
-        self.write_token(letNode, 'let')
+        self.t.advance()  # let
         while self.t.symbol() != ';':
             name = self.t.identifier()
             kind = self.symTable.kind_of(name)
             index = self.symTable.index_of(name)
-            # need to write next if statement better. Need to verify in scope.
             if name in self.symTable.classDict:
-                self.write_token(letNode, 'IDENTIFIER', kind=kind)
+                self.t.advance()
             elif name in self.symTable.subDict:
-                self.write_token(letNode, 'IDENTIFIER', kind=kind)
+                self.t.advance()
             else:
                 raise Exception(self.t.identifier() + ' is not defined')
             if self.t.symbol() == '[':  # array index
                 array = True
                 """if there are issues with arrays later, look here"""
                 self.vm.write_push(kind, index)
-                self.write_token(letNode, '[')
-                self.expressNode = ET.SubElement(letNode, 'expression')
+                self.validator('[')
+                self.t.advance()
                 self.compile_expression()
-                self.write_token(letNode, ']')
+                self.validator(']')
+                self.t.advance()
                 self.vm.write_arithmetic('+')
 
-            self.write_token(letNode, '=')
-            self.expressNode = ET.SubElement(letNode, 'expression')
+            self.validator('=')
+            self.t.advance()
             self.compile_expression()
             if array:
                 self.vm.write_pop('temp', 0)
@@ -314,47 +308,48 @@ class CompilationEngine(object):
                 self.vm.write_pop('that', 0)
             else:
                 self.vm.write_pop(kind, index)
-        self.write_token(letNode, ';')
+        self.validator(';')
+        self.t.advance()
 
         return
 
-    def compile_while(self):
-        whileNode = ET.SubElement(self.stmntNode, 'whileStatement')
-        savedNode = self.stmntNode
+    def compile_while(self):  # noXML
         currentWhile = 'WHILE' + str(self.whileIndex)
         self.vm.write_label(currentWhile)
         self.whileIndex += 1
-        self.write_token(whileNode, 'while')
-        self.write_token(whileNode, '(')
-        self.expressNode = ET.SubElement(whileNode, 'expression')
+        self.t.advance()  # while
+        self.validator('(')
+        self.t.advance()
+
         self.compile_expression()
         self.vm.write_arithmetic('~')
         self.vm.write_if('END' + currentWhile)
-        self.write_token(whileNode, ')')
-        self.write_token(whileNode, '{')
 
-        self.stmntNode = ET.SubElement(whileNode, 'statements')
+        self.validator(')')
+        self.t.advance()
+        self.validator('{')
+        self.t.advance()
+
         self.compile_statements()
         self.vm.write_goto(currentWhile)
-        self.stmntNode = savedNode
 
-        self.write_token(whileNode, '}')
+        self.validator('}')
+        self.t.advance()
         self.vm.write_label('END' + currentWhile)
         return
 
-    def compile_return(self):
-        returnNode = ET.SubElement(self.stmntNode, 'returnStatement')
-        self.write_token(returnNode, 'return')
+    def compile_return(self):  # noXML
+        self.t.advance()  # return
         if self.t.symbol() == ';':
-            self.write_token(returnNode, ';')
+            self.t.advance()
 
             if self.subroutType == 'void':
+                """probably don't need this. if nothing is return, then method
+                is void by default."""
                 self.vm.write_push('constant', '0')
                 self.vm.write_return()
         else:
-            # self.expressNode = ET.SubElement(returnNode, 'expression')
             self.compile_expression()
-            # self.write_token(returnNode, ';')
             self.validator(';')
             self.t.advance()
             self.vm.write_return()
@@ -365,7 +360,7 @@ class CompilationEngine(object):
         endIf = 'END_IF' + str(self.ifIndex)
         currentElse = 'IF_ELSE' + str(self.ifIndex)
         self.ifIndex += 1
-        self.t.advance()
+        self.t.advance()  # if
         self.validator('(')
         self.t.advance()
         self.compile_expression()
@@ -384,7 +379,7 @@ class CompilationEngine(object):
         self.vm.write_label(currentElse)
 
         if self.t.keyword() == 'else':
-            self.t.advance()
+            self.t.advance()  # else
             self.validator('{')
             self.t.advance()
 
