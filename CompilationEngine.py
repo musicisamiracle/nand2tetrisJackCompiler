@@ -352,47 +352,46 @@ class CompilationEngine(object):
                 self.vm.write_push('constant', '0')
                 self.vm.write_return()
         else:
-            self.expressNode = ET.SubElement(returnNode, 'expression')
+            # self.expressNode = ET.SubElement(returnNode, 'expression')
             self.compile_expression()
-            self.write_token(returnNode, ';')
+            # self.write_token(returnNode, ';')
+            self.validator(';')
+            self.t.advance()
             self.vm.write_return()
 
         return
 
-    def compile_if(self):
-        savedNode = self.stmntNode  # necessary for nested statements
-        ifNode = ET.SubElement(self.stmntNode, 'ifStatement')
+    def compile_if(self):  # noXML
         endIf = 'END_IF' + str(self.ifIndex)
         currentElse = 'IF_ELSE' + str(self.ifIndex)
         self.ifIndex += 1
-        self.write_token(ifNode, 'if')
-        self.write_token(ifNode, '(')
-
-        self.expressNode = ET.SubElement(ifNode, 'expression')
+        self.t.advance()
+        self.validator('(')
+        self.t.advance()
         self.compile_expression()
         self.vm.write_arithmetic('~')
         self.vm.write_if(currentElse)
 
-        self.write_token(ifNode, ')')
-        self.write_token(ifNode, '{')
+        self.validator(')')
+        self.t.advance()
+        self.validator('{')
+        self.t.advance()
 
-        self.stmntNode = ET.SubElement(ifNode, 'statements')
         self.compile_statements()
         self.vm.write_goto(endIf)
-        self.stmntNode = savedNode
-
-        self.write_token(ifNode, '}')
+        self.validator('}')
+        self.t.advance()
         self.vm.write_label(currentElse)
 
         if self.t.keyword() == 'else':
-            self.write_token(ifNode, 'else')
-            self.write_token(ifNode, '{')
+            self.t.advance()
+            self.validator('{')
+            self.t.advance()
 
-            self.stmntNode = ET.SubElement(ifNode, 'statements')
             self.compile_statements()
-            self.stmntNode = savedNode
 
-            self.write_token(ifNode, '}')
+            self.validator('}')
+            self.t.advance()
         self.vm.write_label(endIf)
         return
 
