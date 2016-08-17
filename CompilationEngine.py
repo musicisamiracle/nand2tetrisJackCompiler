@@ -1,4 +1,4 @@
-from lxml import etree as ET
+# from lxml import etree as ET
 from JackTokenizer import Tokenizer
 from SymbolTable import SymbolTable
 from VMWriter import VMWriter
@@ -12,12 +12,6 @@ class CompilationEngine(object):
         self.vmName = inFile.rstrip('.jack') + '.vm'
         self.vm = VMWriter(self.vmName)
         self.className = ''
-        self.xmlNew = None
-        self.subroutNode = None
-        self.subBodyNode = None
-        self.stmntNode = None
-        self.expressNode = None
-        self.termNode = None
         self.types = ['int', 'char', 'boolean', 'void']
         self.stmnt = ['do', 'let', 'if', 'while', 'return']
         self.subroutType = ''
@@ -25,91 +19,89 @@ class CompilationEngine(object):
         self.ifIndex = 0
         self.fieldNum = 0
 
-    def compile_class(self):
+    def compile_class(self):  # noXML
 
-        self.xmlNew = ET.Element('class')
         self.t.advance()
-        self.write_token(self.xmlNew, 'class')
+        self.validator('class')
+        self.t.advance()
         self.className = self.t.currentToken
-        self.write_token(self.xmlNew, 'IDENTIFIER',
-                         kind='class', defined=True)
-        self.write_token(self.xmlNew, '{')
+        self.t.advance()
+        self.validator('{')
+        self.t.advance()
         self.fieldNum = self.compile_class_var_dec()
         while self.t.symbol() != '}':   # subroutines
             self.compile_subroutine()
-        self.write_token(self.xmlNew, '}')
+        self.validator('}')
+        self.t.advance()
         self.vm.close()
         return
 
-    def compile_class_var_dec(self):
+    def compile_class_var_dec(self):  # noXML
         varKeyWords = ['field', 'static']
         name = ''
         kind = ''
         varType = ''
         counter = 0
         while self.t.keyword() in varKeyWords:
-            varNode = ET.SubElement(self.xmlNew, 'classVarDec')
             kind = self.t.currentToken
-            self.write_token(varNode, varKeyWords)
+            self.validator(varKeyWords)
+            self.t.advance()
             # variable type
             varType = self.t.currentToken
-            self.write_token(varNode, ['int', 'char', 'boolean', 'IDENTIFIER'],
-                             kind='class')
+            self.validator(['int', 'char', 'boolean', 'IDENTIFIER'])
+            self.t.advance()
             name = self.t.currentToken
             self.symTable.define(name, varType, kind)
-            self.write_token(varNode, 'IDENTIFIER',
-                             kind=kind, defined=True)  # varName
+            self.t.advance()
             if kind == 'field':
                 counter += 1
 
-            self.validator('SYMBOL')
+            self.validator('SYMBOL')  # could cause problem for advance()
             while self.t.symbol() != ';':  # checks multiple vars
-                self.write_token(varNode, ',')
+                self.validator(',')
+                self.t.advance()
                 name = self.t.currentToken
                 self.symTable.define(name, varType, kind)
-                self.write_token(varNode, 'IDENTIFIER',
-                                 kind=kind, defined=True)
+                self.t.advance()
                 if kind == 'field':
                     counter += 1
-            self.write_token(varNode, ';')
+            self.validator(';')
+            self.t.advance()
         return counter
 
-    def compile_subroutine(self):
+    def compile_subroutine(self):  # noXML
         current_subrout_scope = self.symTable.subDict
         self.symTable.start_subroutine()
 
-        self.subroutNode = ET.SubElement(self.xmlNew, 'subroutineDec')
-
         subroutKword = self.t.currentToken
-        self.write_token(self.subroutNode, ['constructor', 'function',
-                                            'method'])
+        self.validator(['constructor', 'function', 'method'])
+        self.t.advance()
 
         self.subroutType = self.t.currentToken
-        self.write_token(self.subroutNode, ['int', 'char',
-                                            'boolean', 'void',
-                                            'IDENTIFIER'], kind='class')
+        self.validator(['int', 'char', 'boolean', 'void', 'IDENTIFIER'])
+        self.t.advance()
 
         name = self.t.currentToken
         subroutName = self.className + '.' + name
-        self.write_token(self.subroutNode, 'IDENTIFIER',
-                         kind='subroutine', defined=True)
-        self.write_token(self.subroutNode, '(')
+        self.t.advance()
+        self.validator('(')
+        self.t.advance()
 
         if subroutKword == 'method':
             self.compile_parameter_list(method=True)
         else:
             self.compile_parameter_list()
 
-        self.write_token(self.subroutNode, ')')
+        self.validator(')')
+        self.t.advance()
         self.validator('{')
-        self.subBodyNode = ET.SubElement(self.subroutNode, 'subroutineBody')
-        self.write_token(self.subBodyNode, '{')
+        self.t.advance()
 
         if self.t.symbol() == '}':
-            self.write_token(self.subBodyNode, '}')
+            self.t.advance()
             return
 
-        self.validator('KEYWORD')
+        self.validator('KEYWORD')  # maybe save keyword in variable
         numLocals = 0
         if self.t.keyword() == 'var':
             numLocals = self.compile_var_dec()
@@ -125,29 +117,26 @@ class CompilationEngine(object):
             self.vm.write_pop('pointer', 0)
 
         if self.t.keyword() in self.stmnt:
-            self.stmntNode = ET.SubElement(self.subBodyNode, 'statements')
             self.compile_statements()
 
-        self.write_token(self.subBodyNode, '}')
+        self.validator('}')
+        self.t.advance()
         self.symTable.subDict = current_subrout_scope
         self.whileIndex = 0
         self.ifIndex = 0
         return
 
-    def compile_parameter_list(self, method=False):
+    def compile_parameter_list(self, method=False):  # noXML
         name = ''
         varType = ''
         kind = ''
         counter = 0
 
-        paramNode = ET.SubElement(self.subroutNode, 'parameterList')
         if self.t.symbol() == ')':
-            paramNode.text = '\n'
             return counter
         varType = self.t.currentToken
-        self.write_token(paramNode, ['int', 'char',
-                                     'boolean', 'void',
-                                     'IDENTIFIER'], kind='class')
+        self.validator(['int', 'char', 'boolean', 'void', 'IDENTIFIER'])
+        self.t.advance()
         kind = 'arg'
         name = self.t.currentToken
         if method:
@@ -155,20 +144,17 @@ class CompilationEngine(object):
         else:
             self.symTable.define(name, varType, kind)
 
-        self.write_token(paramNode, 'IDENTIFIER',
-                         kind='arg', defined=True)
+        self.t.advance()
         counter += 1
         while self.t.symbol() == ',':
-
-            self.write_token(paramNode, ',')
-            self.write_token(paramNode, ['int', 'char',
-                                         'boolean', 'void',
-                                         'IDENTIFIER'], kind='class')
+            self.validator(',')
+            self.t.advance()
+            self.validator(['int', 'char', 'boolean', 'void', 'IDENTIFIER'])
+            self.t.advance()
             kind = 'arg'
             name = self.t.currentToken
             self.symTable.define(name, varType, kind)
-            self.write_token(paramNode, 'IDENTIFIER',
-                             kind='arg', defined=True)
+            self.t.advance()
             counter += 1
         return counter
 
