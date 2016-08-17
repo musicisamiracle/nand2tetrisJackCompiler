@@ -1,4 +1,3 @@
-# from lxml import etree as ET
 from JackTokenizer import Tokenizer
 from SymbolTable import SymbolTable
 from VMWriter import VMWriter
@@ -534,9 +533,3 @@ class CompilationEngine(object):
                 return True
         raise Exception(self.t.currentToken +
                         ' is not valid')
-
-    def write_token(self, parent, syntax, kind=None, defined=False):
-        if self.validator(syntax):
-            pass
-        self.t.advance()
-        return
