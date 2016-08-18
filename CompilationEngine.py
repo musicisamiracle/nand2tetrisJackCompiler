@@ -18,7 +18,7 @@ class CompilationEngine(object):
         self.ifIndex = 0
         self.fieldNum = 0
 
-    def compile_class(self):  # noXML
+    def compile_class(self):
 
         self.t.advance()
         self.validator('class')
@@ -35,7 +35,7 @@ class CompilationEngine(object):
         self.vm.close()
         return
 
-    def compile_class_var_dec(self):  # noXML
+    def compile_class_var_dec(self):
         varKeyWords = ['field', 'static']
         name = ''
         kind = ''
@@ -55,7 +55,7 @@ class CompilationEngine(object):
             if kind == 'field':
                 counter += 1
 
-            self.validator('SYMBOL')  # could cause problem for advance()
+            # self.validator([';', ','])  # could cause problem for advance()
             while self.t.symbol() != ';':  # checks multiple vars
                 self.validator(',')
                 self.t.advance()
@@ -68,7 +68,7 @@ class CompilationEngine(object):
             self.t.advance()
         return counter
 
-    def compile_subroutine(self):  # noXML
+    def compile_subroutine(self):
         current_subrout_scope = self.symTable.subDict
         self.symTable.start_subroutine()
 
@@ -100,7 +100,8 @@ class CompilationEngine(object):
             self.t.advance()
             return
 
-        self.validator('KEYWORD')  # maybe save keyword in variable
+        self.validator(['var', 'let', 'do', 'if', 'while', 'return'],
+                       advance=False)
         numLocals = 0
         if self.t.keyword() == 'var':
             numLocals = self.compile_var_dec()
@@ -125,7 +126,7 @@ class CompilationEngine(object):
         self.ifIndex = 0
         return
 
-    def compile_parameter_list(self, method=False):  # noXML
+    def compile_parameter_list(self, method=False):
         name = ''
         varType = ''
         kind = ''
@@ -157,7 +158,7 @@ class CompilationEngine(object):
             counter += 1
         return counter
 
-    def compile_var_dec(self):  # noXML
+    def compile_var_dec(self):
         name = ''
         kind = ''
         varType = ''
@@ -166,8 +167,8 @@ class CompilationEngine(object):
         while self.t.keyword() == 'var':  # check multiple lines of var
             kind = 'var'
             self.t.advance()
-            self.validator(['int', 'char', 'boolean', 'void', 'IDENTIFIER'])
             varType = self.t.currentToken
+            self.validator(['int', 'char', 'boolean', 'void', 'IDENTIFIER'])
             self.t.advance()
             name = self.t.currentToken
             self.symTable.define(name, varType, kind)
@@ -185,7 +186,7 @@ class CompilationEngine(object):
 
         return counter
 
-    def compile_statements(self):  # noXML
+    def compile_statements(self):
 
         while self.t.keyword() in self.stmnt:
             if self.t.keyword() == 'let':
@@ -204,7 +205,7 @@ class CompilationEngine(object):
 
         return
 
-    def compile_do(self):  # noXML
+    def compile_do(self):
         lookAhead = ''
         self.t.advance()  # do
         lookAhead = self.t.tokens[self.t.tokenIndex + 1]
@@ -257,7 +258,7 @@ class CompilationEngine(object):
             self.vm.write_pop('temp', 0)
             return
 
-    def compile_let(self):  # noXML
+    def compile_let(self):
         name = ''
         kind = ''
         array = False
@@ -298,7 +299,7 @@ class CompilationEngine(object):
 
         return
 
-    def compile_while(self):  # noXML
+    def compile_while(self):
         currentWhile = 'WHILE' + str(self.whileIndex)
         self.vm.write_label(currentWhile)
         self.whileIndex += 1
@@ -323,7 +324,7 @@ class CompilationEngine(object):
         self.vm.write_label('END' + currentWhile)
         return
 
-    def compile_return(self):  # noXML
+    def compile_return(self):
         self.t.advance()  # return
         if self.t.symbol() == ';':
             self.t.advance()
@@ -341,7 +342,7 @@ class CompilationEngine(object):
 
         return
 
-    def compile_if(self):  # noXML
+    def compile_if(self):
         endIf = 'END_IF' + str(self.ifIndex)
         currentElse = 'IF_ELSE' + str(self.ifIndex)
         self.ifIndex += 1
@@ -375,7 +376,7 @@ class CompilationEngine(object):
         self.vm.write_label(endIf)
         return
 
-    def compile_expression(self):  # noXML
+    def compile_expression(self):
         op = ['+', '-', '*', '/', '&', '|', '<', '>', '=']
         self.compile_term()
         while self.t.symbol() in op:
@@ -385,7 +386,7 @@ class CompilationEngine(object):
             self.vm.write_arithmetic(opToken)
         return
 
-    def compile_term(self):  # noXML
+    def compile_term(self):
 
         keyConst = ['true', 'false', 'null', 'this']
         unOps = ['-', '~']
@@ -408,7 +409,7 @@ class CompilationEngine(object):
             self.t.advance()
 
         elif self.t.token_type() == 'KEYWORD':
-            self.validator(keyConst)
+            self.validator(keyConst, advance=False)
             if self.t.currentToken in ['false', 'null']:
                 self.t.advance()
                 self.vm.write_push('constant', '0')
@@ -475,8 +476,8 @@ class CompilationEngine(object):
                 self.t.advance()
                 self.validator('.')
                 self.t.advance()
-                self.validator('IDENTIFIER')
                 subroutName = self.t.currentToken
+                self.validator('IDENTIFIER')
                 self.t.advance()
                 name = className + '.' + subroutName
                 self.validator('(')
@@ -509,7 +510,7 @@ class CompilationEngine(object):
 
         return
 
-    def compile_expression_list(self):  # only in subroutineCall  noXML
+    def compile_expression_list(self):  # only in subroutineCall
         counter = 0
         if self.t.symbol() == ')':
             return counter
@@ -523,7 +524,7 @@ class CompilationEngine(object):
 
         return counter
 
-    def validator(self, syntax):
+    def validator(self, syntax, advance=True):
         tokenType = self.t.token_type()
         token = self.t.currentToken
         if type(syntax) != list:
@@ -533,3 +534,5 @@ class CompilationEngine(object):
                 return True
         raise Exception(self.t.currentToken +
                         ' is not valid')
+        # if advance:
+            # self.t.advance()
