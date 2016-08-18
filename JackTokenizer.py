@@ -162,6 +162,9 @@ class Tokenizer(object):
         if self.token_type() == 'STRING_CONST':
             return self.tokens[self.tokenIndex].strip('"')
 
+    def current_token(self):
+        return self.currentToken
+
     def close(self):
         self.jackFile.close()
         return

@@ -3,15 +3,6 @@ import sys
 import glob
 import os
 
-"""Need to change access to class variables into class methods"""
-
-"""try:
-    c = CE.CompilationEngine('ConvertToBin/Main.jack')
-    c.compile_class()
-    print c.vm.debugOut
-except:
-    raise"""
-
 
 def main():
 
@@ -32,7 +23,14 @@ def main():
             sys.exit()
 
     if isDirectory:
-        for f in glob.glob('*.jack'):
+        files = glob.glob('*.jack')
+        if files == []:
+            err = 'Please enter a jack file or directory' \
+                  ' containing jack files'
+            print err
+            sys.exit()
+
+        for f in files:
             try:
                 c = CE.CompilationEngine(f)
                 c.compile_class()
@@ -40,7 +38,8 @@ def main():
                 print 'An error occurred'
                 for f in glob.glob('*.vm'):
                     os.remove(f)
-                raise
+                # raise
+
     else:
         try:
             c = CE.CompilationEngine(fileName)
@@ -50,7 +49,7 @@ def main():
             print 'An error occurred'
             for f in glob.glob('*.vm'):
                 os.remove(f)
-            raise
+            # raise
     return
 
 if __name__ == "__main__":

@@ -22,7 +22,7 @@ class CompilationEngine(object):
 
         self.t.advance()
         self.validator('class')
-        self.className = self.t.currentToken
+        self.className = self.t.current_token()
         self.t.advance()
         self.validator('{')
         self.fieldNum = self.compile_class_var_dec()
@@ -30,6 +30,7 @@ class CompilationEngine(object):
             self.compile_subroutine()
         self.validator('}')
         self.vm.close()
+
         return
 
     def compile_class_var_dec(self):
@@ -39,12 +40,12 @@ class CompilationEngine(object):
         varType = ''
         counter = 0
         while self.t.keyword() in varKeyWords:
-            kind = self.t.currentToken
+            kind = self.t.current_token()
             self.validator(varKeyWords)
             # variable type
-            varType = self.t.currentToken
+            varType = self.t.current_token()
             self.validator(['int', 'char', 'boolean', 'IDENTIFIER'])
-            name = self.t.currentToken
+            name = self.t.current_token()
             self.symTable.define(name, varType, kind)
             self.t.advance()
             if kind == 'field':
@@ -52,25 +53,26 @@ class CompilationEngine(object):
 
             while self.t.symbol() != ';':  # checks multiple vars
                 self.validator(',')
-                name = self.t.currentToken
+                name = self.t.current_token()
                 self.symTable.define(name, varType, kind)
                 self.t.advance()
                 if kind == 'field':
                     counter += 1
             self.validator(';')
+
         return counter
 
     def compile_subroutine(self):
         current_subrout_scope = self.symTable.subDict
         self.symTable.start_subroutine()
 
-        subroutKword = self.t.currentToken
+        subroutKword = self.t.current_token()
         self.validator(['constructor', 'function', 'method'])
 
-        self.subroutType = self.t.currentToken
+        self.subroutType = self.t.current_token()
         self.validator(['int', 'char', 'boolean', 'void', 'IDENTIFIER'])
 
-        name = self.t.currentToken
+        name = self.t.current_token()
         subroutName = self.className + '.' + name
         self.t.advance()
         self.validator('(')
@@ -85,6 +87,7 @@ class CompilationEngine(object):
 
         if self.t.symbol() == '}':
             self.t.advance()
+
             return
 
         self.validator(['var', 'let', 'do', 'if', 'while', 'return'],
@@ -110,6 +113,7 @@ class CompilationEngine(object):
         self.symTable.subDict = current_subrout_scope
         self.whileIndex = 0
         self.ifIndex = 0
+
         return
 
     def compile_parameter_list(self, method=False):
@@ -120,10 +124,10 @@ class CompilationEngine(object):
 
         if self.t.symbol() == ')':
             return counter
-        varType = self.t.currentToken
+        varType = self.t.current_token()
         self.validator(['int', 'char', 'boolean', 'void', 'IDENTIFIER'])
         kind = 'arg'
-        name = self.t.currentToken
+        name = self.t.current_token()
         if method:
             self.symTable.define(name, varType, kind, method=True)
         else:
@@ -135,10 +139,11 @@ class CompilationEngine(object):
             self.validator(',')
             self.validator(['int', 'char', 'boolean', 'void', 'IDENTIFIER'])
             kind = 'arg'
-            name = self.t.currentToken
+            name = self.t.current_token()
             self.symTable.define(name, varType, kind)
             self.t.advance()
             counter += 1
+
         return counter
 
     def compile_var_dec(self):
@@ -150,16 +155,16 @@ class CompilationEngine(object):
         while self.t.keyword() == 'var':  # check multiple lines of var
             kind = 'var'
             self.t.advance()
-            varType = self.t.currentToken
+            varType = self.t.current_token()
             self.validator(['int', 'char', 'boolean', 'void', 'IDENTIFIER'])
-            name = self.t.currentToken
+            name = self.t.current_token()
             self.symTable.define(name, varType, kind)
             self.t.advance()
             counter += 1
 
             while self.t.symbol() == ',':  # multiple varNames
                 self.t.advance()
-                name = self.t.currentToken
+                name = self.t.current_token()
                 self.symTable.define(name, varType, kind)
                 self.t.advance()
                 counter += 1
@@ -181,7 +186,7 @@ class CompilationEngine(object):
             elif self.t.keyword() == 'return':
                 self.compile_return()
             else:
-                raise Exception(self.t.currentToken +
+                raise Exception(self.t.current_token() +
                                 ' is not valid')
 
         return
@@ -192,7 +197,7 @@ class CompilationEngine(object):
         lookAhead = self.t.tokens[self.t.tokenIndex + 1]
 
         if lookAhead == '(':  # subroutineName(exprlist)
-            subroutName = self.className + '.' + self.t.currentToken
+            subroutName = self.className + '.' + self.t.current_token()
             self.t.advance()
             self.validator('(')
 
@@ -203,12 +208,13 @@ class CompilationEngine(object):
             self.validator(')')
             self.validator(';')
             self.vm.write_pop('temp', 0)  # throws away returned value
+
             return
         else:
-            className = self.t.currentToken
+            className = self.t.current_token()
             self.t.advance()
             self.validator('.')  # name.subroutine(exprList)
-            subroutName = self.t.currentToken
+            subroutName = self.t.current_token()
             self.t.advance()
             self.validator('(')
 
@@ -230,6 +236,7 @@ class CompilationEngine(object):
             self.validator(')')
             self.validator(';')
             self.vm.write_pop('temp', 0)
+
             return
 
     def compile_let(self):
@@ -249,7 +256,6 @@ class CompilationEngine(object):
                 raise Exception(self.t.identifier() + ' is not defined')
             if self.t.symbol() == '[':  # array index
                 array = True
-                """if there are issues with arrays later, look here"""
                 self.vm.write_push(kind, index)
                 self.validator('[')
                 self.compile_expression()
@@ -288,18 +294,15 @@ class CompilationEngine(object):
 
         self.validator('}')
         self.vm.write_label('END' + currentWhile)
+
         return
 
     def compile_return(self):
         self.t.advance()  # return
         if self.t.symbol() == ';':
+            self.vm.write_push('constant', '0')
+            self.vm.write_return()
             self.t.advance()
-
-            if self.subroutType == 'void':
-                """probably don't need this. if nothing is return, then method
-                is void by default."""
-                self.vm.write_push('constant', '0')
-                self.vm.write_return()
         else:
             self.compile_expression()
             self.validator(';')
@@ -333,16 +336,18 @@ class CompilationEngine(object):
 
             self.validator('}')
         self.vm.write_label(endIf)
+
         return
 
     def compile_expression(self):
         op = ['+', '-', '*', '/', '&', '|', '<', '>', '=']
         self.compile_term()
         while self.t.symbol() in op:
-            opToken = self.t.currentToken
+            opToken = self.t.current_token()
             self.t.advance()
             self.compile_term()
             self.vm.write_arithmetic(opToken)
+
         return
 
     def compile_term(self):
@@ -354,10 +359,10 @@ class CompilationEngine(object):
         current_subrout_scope = ''
 
         if self.t.token_type() == 'INT_CONST':
-            self.vm.write_push('constant', self.t.currentToken)
+            self.vm.write_push('constant', self.t.int_val())
             self.t.advance()
         elif self.t.token_type() == 'STRING_CONST':
-            string = self.t.currentToken.strip('"')
+            string = self.t.string_val()
             length = len(string)
             self.vm.write_push('constant', length)
             self.vm.write_call('String.new', 1)
@@ -369,10 +374,10 @@ class CompilationEngine(object):
 
         elif self.t.token_type() == 'KEYWORD':
             self.validator(keyConst, advance=False)
-            if self.t.currentToken in ['false', 'null']:
+            if self.t.current_token() in ['false', 'null']:
                 self.t.advance()
                 self.vm.write_push('constant', '0')
-            elif self.t.currentToken == 'true':
+            elif self.t.current_token() == 'true':
                 self.vm.write_push('constant', '1')
                 self.vm.write_arithmetic('-', neg=True)
                 self.t.advance()
@@ -382,7 +387,7 @@ class CompilationEngine(object):
 
         elif self.t.token_type() == 'SYMBOL':
             if self.t.symbol() in unOps:  # unary operator
-                unOpToken = self.t.currentToken
+                unOpToken = self.t.current_token()
                 self.t.advance()
                 self.compile_term()
                 self.vm.write_arithmetic(unOpToken, neg=True)
@@ -391,7 +396,7 @@ class CompilationEngine(object):
                 self.compile_expression()
                 self.t.advance()
             else:
-                raise Exception(self.t.currentToken +
+                raise Exception(self.t.current_token() +
                                 ' is not valid')
         elif self.t.token_type() == 'IDENTIFIER':  # varName, array, or subcall
             lookAhead = self.t.tokens[self.t.tokenIndex + 1]
@@ -417,7 +422,7 @@ class CompilationEngine(object):
 
             elif lookAhead == '(':  # subcall
                 current_subrout_scope = self.symTable.subDict
-                name = self.className + '.' + self.t.currentToken
+                name = self.className + '.' + self.t.current_token()
                 self.t.advance()
                 self.validator('(')
                 numArgs = self.compile_expression_list()
@@ -427,10 +432,10 @@ class CompilationEngine(object):
 
             elif lookAhead == '.':  # name.subroutName(expressList)
                 current_subrout_scope = self.symTable.subDict
-                className = self.t.currentToken
+                className = self.t.current_token()
                 self.t.advance()
                 self.validator('.')
-                subroutName = self.t.currentToken
+                subroutName = self.t.current_token()
                 self.validator('IDENTIFIER')
                 name = className + '.' + subroutName
                 self.validator('(')
@@ -456,7 +461,7 @@ class CompilationEngine(object):
                 self.vm.write_push(kind, index)
                 self.t.advance()
         else:
-            raise Exception(self.t.currentToken +
+            raise Exception(self.t.current_token() +
                             ' is not valid')
 
         return
@@ -477,7 +482,7 @@ class CompilationEngine(object):
 
     def validator(self, syntax, advance=True):
         tokenType = self.t.token_type()
-        token = self.t.currentToken
+        token = self.t.current_token()
         if advance:
             self.t.advance()
         if type(syntax) != list:
@@ -485,5 +490,5 @@ class CompilationEngine(object):
         for item in syntax:
             if item in [tokenType, token]:
                 return True
-        raise Exception(self.t.currentToken +
+        raise Exception(self.t.current_token() +
                         ' is not valid')
