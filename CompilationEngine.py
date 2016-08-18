@@ -22,16 +22,13 @@ class CompilationEngine(object):
 
         self.t.advance()
         self.validator('class')
-        self.t.advance()
         self.className = self.t.currentToken
         self.t.advance()
         self.validator('{')
-        self.t.advance()
         self.fieldNum = self.compile_class_var_dec()
         while self.t.symbol() != '}':   # subroutines
             self.compile_subroutine()
         self.validator('}')
-        self.t.advance()
         self.vm.close()
         return
 
@@ -44,11 +41,9 @@ class CompilationEngine(object):
         while self.t.keyword() in varKeyWords:
             kind = self.t.currentToken
             self.validator(varKeyWords)
-            self.t.advance()
             # variable type
             varType = self.t.currentToken
             self.validator(['int', 'char', 'boolean', 'IDENTIFIER'])
-            self.t.advance()
             name = self.t.currentToken
             self.symTable.define(name, varType, kind)
             self.t.advance()
@@ -58,14 +53,13 @@ class CompilationEngine(object):
             # self.validator([';', ','])  # could cause problem for advance()
             while self.t.symbol() != ';':  # checks multiple vars
                 self.validator(',')
-                self.t.advance()
                 name = self.t.currentToken
                 self.symTable.define(name, varType, kind)
                 self.t.advance()
                 if kind == 'field':
                     counter += 1
             self.validator(';')
-            self.t.advance()
+            # self.t.advance()
         return counter
 
     def compile_subroutine(self):
@@ -74,17 +68,17 @@ class CompilationEngine(object):
 
         subroutKword = self.t.currentToken
         self.validator(['constructor', 'function', 'method'])
-        self.t.advance()
+        # self.t.advance()
 
         self.subroutType = self.t.currentToken
         self.validator(['int', 'char', 'boolean', 'void', 'IDENTIFIER'])
-        self.t.advance()
+        # self.t.advance()
 
         name = self.t.currentToken
         subroutName = self.className + '.' + name
         self.t.advance()
         self.validator('(')
-        self.t.advance()
+        # self.t.advance()
 
         if subroutKword == 'method':
             self.compile_parameter_list(method=True)
@@ -92,9 +86,9 @@ class CompilationEngine(object):
             self.compile_parameter_list()
 
         self.validator(')')
-        self.t.advance()
+        # self.t.advance()
         self.validator('{')
-        self.t.advance()
+        # self.t.advance()
 
         if self.t.symbol() == '}':
             self.t.advance()
@@ -120,7 +114,7 @@ class CompilationEngine(object):
             self.compile_statements()
 
         self.validator('}')
-        self.t.advance()
+        # self.t.advance()
         self.symTable.subDict = current_subrout_scope
         self.whileIndex = 0
         self.ifIndex = 0
@@ -136,7 +130,7 @@ class CompilationEngine(object):
             return counter
         varType = self.t.currentToken
         self.validator(['int', 'char', 'boolean', 'void', 'IDENTIFIER'])
-        self.t.advance()
+        # self.t.advance()
         kind = 'arg'
         name = self.t.currentToken
         if method:
@@ -148,9 +142,9 @@ class CompilationEngine(object):
         counter += 1
         while self.t.symbol() == ',':
             self.validator(',')
-            self.t.advance()
+            # self.t.advance()
             self.validator(['int', 'char', 'boolean', 'void', 'IDENTIFIER'])
-            self.t.advance()
+            # self.t.advance()
             kind = 'arg'
             name = self.t.currentToken
             self.symTable.define(name, varType, kind)
@@ -169,7 +163,7 @@ class CompilationEngine(object):
             self.t.advance()
             varType = self.t.currentToken
             self.validator(['int', 'char', 'boolean', 'void', 'IDENTIFIER'])
-            self.t.advance()
+            # self.t.advance()
             name = self.t.currentToken
             self.symTable.define(name, varType, kind)
             self.t.advance()
@@ -182,7 +176,7 @@ class CompilationEngine(object):
                 self.t.advance()
                 counter += 1
             self.validator(';')
-            self.t.advance()
+            # self.t.advance()
 
         return counter
 
@@ -214,27 +208,27 @@ class CompilationEngine(object):
             subroutName = self.className + '.' + self.t.currentToken
             self.t.advance()
             self.validator('(')
-            self.t.advance()
+            # self.t.advance()
 
             self.vm.write_push('pointer', 0)
             numArgs = self.compile_expression_list()
             self.vm.write_call(subroutName, numArgs + 1)  # add 1 for 'this'
 
             self.validator(')')
-            self.t.advance()
+            # self.t.advance()
             self.validator(';')
-            self.t.advance()
+            # self.t.advance()
             self.vm.write_pop('temp', 0)  # throws away returned value
             return
         else:
             className = self.t.currentToken
             self.t.advance()
             self.validator('.')  # name.subroutine(exprList)
-            self.t.advance()
+            # self.t.advance()
             subroutName = self.t.currentToken
             self.t.advance()
             self.validator('(')
-            self.t.advance()
+            # self.t.advance()
 
             if self.symTable.kind_of(className) in ['this', 'static',
                                                     'local', 'argument']:
@@ -252,9 +246,9 @@ class CompilationEngine(object):
                 self.vm.write_call(subroutName, numArgs)
 
             self.validator(')')
-            self.t.advance()
+            # self.t.advance()
             self.validator(';')
-            self.t.advance()
+            # self.t.advance()
             self.vm.write_pop('temp', 0)
             return
 
@@ -278,14 +272,14 @@ class CompilationEngine(object):
                 """if there are issues with arrays later, look here"""
                 self.vm.write_push(kind, index)
                 self.validator('[')
-                self.t.advance()
+                # self.t.advance()
                 self.compile_expression()
                 self.validator(']')
-                self.t.advance()
+                # self.t.advance()
                 self.vm.write_arithmetic('+')
 
             self.validator('=')
-            self.t.advance()
+            # self.t.advance()
             self.compile_expression()
             if array:
                 self.vm.write_pop('temp', 0)
@@ -295,7 +289,7 @@ class CompilationEngine(object):
             else:
                 self.vm.write_pop(kind, index)
         self.validator(';')
-        self.t.advance()
+        # self.t.advance()
 
         return
 
@@ -305,22 +299,22 @@ class CompilationEngine(object):
         self.whileIndex += 1
         self.t.advance()  # while
         self.validator('(')
-        self.t.advance()
+        # self.t.advance()
 
         self.compile_expression()
         self.vm.write_arithmetic('~')
         self.vm.write_if('END' + currentWhile)
 
         self.validator(')')
-        self.t.advance()
+        # self.t.advance()
         self.validator('{')
-        self.t.advance()
+        # self.t.advance()
 
         self.compile_statements()
         self.vm.write_goto(currentWhile)
 
         self.validator('}')
-        self.t.advance()
+        # self.t.advance()
         self.vm.write_label('END' + currentWhile)
         return
 
@@ -337,7 +331,7 @@ class CompilationEngine(object):
         else:
             self.compile_expression()
             self.validator(';')
-            self.t.advance()
+            # self.t.advance()
             self.vm.write_return()
 
         return
@@ -348,31 +342,31 @@ class CompilationEngine(object):
         self.ifIndex += 1
         self.t.advance()  # if
         self.validator('(')
-        self.t.advance()
+        # self.t.advance()
         self.compile_expression()
         self.vm.write_arithmetic('~')
         self.vm.write_if(currentElse)
 
         self.validator(')')
-        self.t.advance()
+        # self.t.advance()
         self.validator('{')
-        self.t.advance()
+        # self.t.advance()
 
         self.compile_statements()
         self.vm.write_goto(endIf)
         self.validator('}')
-        self.t.advance()
+        # self.t.advance()
         self.vm.write_label(currentElse)
 
         if self.t.keyword() == 'else':
             self.t.advance()  # else
             self.validator('{')
-            self.t.advance()
+            # self.t.advance()
 
             self.compile_statements()
 
             self.validator('}')
-            self.t.advance()
+            # self.t.advance()
         self.vm.write_label(endIf)
         return
 
@@ -448,7 +442,7 @@ class CompilationEngine(object):
                     raise Exception(self.t.identifier() + ' is not defined')
                 self.vm.write_push(kind, index)
                 self.validator('[')
-                self.t.advance()
+                # self.t.advance()
                 self.compile_expression()
 
                 self.vm.write_arithmetic('+')
@@ -456,18 +450,18 @@ class CompilationEngine(object):
                 self.vm.write_push('that', 0)
 
                 self.validator(']')
-                self.t.advance()
+                # self.t.advance()
 
             elif lookAhead == '(':  # subcall
                 current_subrout_scope = self.symTable.subDict
                 name = self.className + '.' + self.t.currentToken
                 self.t.advance()
                 self.validator('(')
-                self.t.advance()
+                # self.t.advance()
                 numArgs = self.compile_expression_list()
                 self.vm.write_call(name, numArgs + 1)
                 self.validator(')')
-                self.t.advance()
+                # self.t.advance()
                 self.symTable.subDict = current_subrout_scope
 
             elif lookAhead == '.':  # name.subroutName(expressList)
@@ -475,13 +469,13 @@ class CompilationEngine(object):
                 className = self.t.currentToken
                 self.t.advance()
                 self.validator('.')
-                self.t.advance()
+                # self.t.advance()
                 subroutName = self.t.currentToken
                 self.validator('IDENTIFIER')
-                self.t.advance()
+                # self.t.advance()
                 name = className + '.' + subroutName
                 self.validator('(')
-                self.t.advance()
+                # self.t.advance()
                 if self.symTable.kind_of(className) in ['this', 'static',
                                                         'local', 'argument']:
                     # used 'this' for 'field'
@@ -496,7 +490,7 @@ class CompilationEngine(object):
                     numArgs = self.compile_expression_list()
                     self.vm.write_call(name, numArgs)
                 self.validator(')')
-                self.t.advance()
+                # self.t.advance()
                 self.symTable.subDict = current_subrout_scope
             else:
                 name = self.t.identifier()  # varName
@@ -527,6 +521,8 @@ class CompilationEngine(object):
     def validator(self, syntax, advance=True):
         tokenType = self.t.token_type()
         token = self.t.currentToken
+        if advance:
+            self.t.advance()
         if type(syntax) != list:
             syntax = [syntax]
         for item in syntax:
@@ -534,5 +530,3 @@ class CompilationEngine(object):
                 return True
         raise Exception(self.t.currentToken +
                         ' is not valid')
-        # if advance:
-            # self.t.advance()
